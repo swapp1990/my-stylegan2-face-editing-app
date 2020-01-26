@@ -22,10 +22,11 @@
                             <button @click="clear()">Clear</button>
                             <button @click="randomize()">Random</button>
                         </div>
-                        <div class="p-2">
-                            <input type="range" id="customRange1" min="-15" max="15" step="0.5"
-                    v-on:change="changeCoeff()" v-model="dirVecCoeff">
-                    <span class="ml-3">Coeff: {{dirVecCoeff}}</span>
+                        <hr>
+                        <div v-for="attr in attributes" class="p-2">
+                            <span class="mr-3">{{attr.name}}</span>
+                            <input type="range" id="customRange1" min="-12" max="12" step="0.5" v-on:change="changeCoeff(attr)" v-model="attr.coeff">
+                            <span class="ml-3">Coeff: {{attr.coeff}}</span>
                         </div>
                     </div>
                 </div>
@@ -49,8 +50,26 @@ export default {
             logs: [],
             training: true,
             //face editing
-            src_face: null,
-            dirVecCoeff: 0.0
+            attributes: [
+                    {name: 'smile', coeff: 0.0}, 
+                    {name: 'gender', coeff: 0.0},
+                    {name: 'age', coeff: 0.0},
+                    {name: 'beauty', coeff: 0.0},
+                    {name: 'glasses', coeff: 0.0},
+                    {name: 'race_black', coeff: 0.0},
+                    {name: 'race_yellow', coeff: 0.0},
+                    {name: 'emotion_fear', coeff: 0.0},
+                    {name: 'emotion_angry', coeff: 0.0},
+                    {name: 'emotion_disgust', coeff: 0.0},
+                    {name: 'emotion_easy', coeff: 0.0},
+                    {name: 'eyes_open', coeff: 0.0},
+                    {name: 'angle_horizontal', coeff: 0.0},
+                    {name: 'angle_pitch', coeff: 0.0},
+                    {name: 'face_shape', coeff: 0.0},
+                    {name: 'height', coeff: 0.0},
+                    {name: 'width', coeff: 0.0},
+                ],
+            src_face: null
         }
     },
     mounted(){
@@ -146,14 +165,18 @@ export default {
             });
         },
         clear() {
-
+            this.attributes.forEach(attr => {
+                attr.coeff = 0;
+            });
+            let params = {};
+            this.sendEditAction("clear", params);
         },
         randomize() {
             let params = {};
             this.sendEditAction("randomize", params);
         },
-        changeCoeff() {
-            let params = {"coeff": this.dirVecCoeff};
+        changeCoeff(attr) {
+            let params = {"attrName":attr.name, "coeff": attr.coeff};
             this.sendEditAction("changeCoeff", params);
         }
     }
