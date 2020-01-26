@@ -116,6 +116,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 .vscode/
+latent_directions/
 screenshots/
 music/
 videos/
@@ -125,3 +126,4 @@ temp/
 cache/
 output/
 plots/
+dnnlib/tflib/_cudacache/

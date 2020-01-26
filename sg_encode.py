@@ -1,0 +1,103 @@
+import numpy as np
+from matplotlib import pyplot as plt
+import PIL.Image
+import dnnlib
+import dnnlib.tflib as tflib
+import pretrained_networks
+import os
+import mpld3
+from server.threads import Worker as workerCls
+
+import EasyDict as ED
+
+network_pkl = 'cache/generator_model-stylegan2-config-f.pkl' 
+
+class StyleGanEncoding():
+    def __init__(self):
+        self.Gs = None
+
+        self.Gs_kwargs = dnnlib.EasyDict()
+        self.Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+        self.Gs_kwargs.randomize_noise = False
+        self.Gs_kwargs.minibatch_size = 1
+
+        self.truncation_psi = 0.5
+        self.direction_file = 'smile.npy'
+
+        self.direction = None
+        self.w_avg = None
+        self.w_src = None
+
+        self.img_size = 512
+
+        self.call_func_names = {
+            'initApp': self.makeModels,
+            'randomize': self.generateRandomSrcImg,
+            'changeCoeff': self.changeCoeff
+        }
+
+    ############################## Client Edit Actions #####################################
+    def makeModels(self, params=None):
+        _G, _D, self.Gs = pretrained_networks.load_networks(network_pkl)
+        self.w_avg = self.Gs.get_var('dlatent_avg')
+        print("made models")
+        
+        self.direction = np.load('latent_directions/' + self.direction_file)
+        print("loaded latents")
+        # Generate random latent
+        z = np.random.randn(1, *self.Gs.input_shape[1:])
+        self.w_src = self.Gs.components.mapping.run(z, None)
+        self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
+
+        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+    
+    def generateRandomSrcImg(self, params=None):
+        print("generateRandomSrcImg ", params)
+        z = np.random.randn(1, *self.Gs.input_shape[1:])
+        self.w_src = self.Gs.components.mapping.run(z, None)
+        self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
+        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+
+    def changeCoeff(self, params=None):
+        print("changeCoeff ", params)
+        coeffVal = float(params.coeff)
+        self.moveLatentAndGenerate(self.w_src, self.direction, coeffVal)
+###############################################################################################
+    def moveLatentAndGenerate(self, latent_vector, direction, coeff):
+        coeff = -1 * coeff
+        new_latent_vector = latent_vector.copy()
+        new_latent_vector[0][:8] = (latent_vector[0] + coeff*direction)[:8]
+        images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        # result.save('results/exm.png')
+        self.broadcastImg(resImg, imgSize=self.img_size)
+
+    def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
+        my_dpi = 96
+        # img_size = (256,256)
+        fig = plt.figure(figsize=(imgSize/my_dpi, imgSize/my_dpi), dpi=my_dpi)
+        ax1 = fig.add_subplot(1,1,1)
+        ax1.set_xticks([])
+        ax1.set_yticks([])
+        ax1.imshow(img, cmap='plasma')
+        # plt.show()
+        mp_fig = mpld3.fig_to_dict(fig)
+        plt.close('all')
+        msg = {'action': 'sendImg', 'fig': mp_fig, 'tag': tag, 'filename': filename}
+        self.broadcast(msg)
+    
+    def broadcast(self, msg):
+        msg["id"] = 1
+        workerCls.broadcast_event(msg)
+
+    ################### Thread Methods ###################################
+    def doWork(self, msg):
+        if isinstance(msg, ED.EasyDict):
+            self.call_func_names[msg.actionData.action](ED.EasyDict(msg.actionData.params))
+        elif msg['action'] == 'initApp':
+            self.initApp(msg['config'])
+        elif msg['action'] == 'makeModel':
+            self.makeModels()
+        # elif msg['action'] == 'randomize':
+        #     self.generateRandomSrcImg()
