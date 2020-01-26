@@ -18,9 +18,20 @@
                         <img v-if="src_face != null" v-bind:src="'data:image/jpeg;base64,'+src_face.data"/>
                     </div>
                     <div class="col-sm-6">
-                        <div>
-                            <button @click="clear()">Clear</button>
-                            <button @click="randomize()">Random</button>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <button @click="clear()">Clear</button>
+                                <button @click="randomize()">Random</button>
+                            </div>
+                            <div class="col-sm-8">
+                                <div class="p-2">
+                                    <div class="range-slider">
+                                        <span>Fix DLatent Layers from {{fix_layer_ranges[0]}} to {{fix_layer_ranges[1]}}</span><br>
+                                        <input @change="changeLayerMixRange" v-model.number="fix_layer_ranges[0]" min="0" max="18" step="1" type="range" />
+                                        <input @change="changeLayerMixRange" v-model.number="fix_layer_ranges[1]" min="0" max="18" step="1" type="range" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <hr>
                         <div v-for="attr in attributes" class="p-2">
@@ -69,7 +80,8 @@ export default {
                     {name: 'height', coeff: 0.0},
                     {name: 'width', coeff: 0.0},
                 ],
-            src_face: null
+            src_face: null,
+            fix_layer_ranges: [0,8]
         }
     },
     mounted(){
@@ -178,7 +190,27 @@ export default {
         changeCoeff(attr) {
             let params = {"attrName":attr.name, "coeff": attr.coeff};
             this.sendEditAction("changeCoeff", params);
+        },
+        changeLayerMixRange() {
+            if (this.fix_layer_ranges[0] > this.fix_layer_ranges[1]) {
+                var tmp = this.fix_layer_ranges[0];
+                this.fix_layer_ranges[1] = this.fix_layer_ranges[0];
+                this.fix_layer_ranges[0] = tmp;
+            }
+            let params = {"fix_layer_ranges":this.fix_layer_ranges};
+            this.sendEditAction("changeFixedLayers", params);
         }
     }
 }
 </script>
+<style scoped>
+    .selectedImg {
+        border: 3px solid brown;
+        border-radius: 4px;
+    }
+    .range-slider {
+        width: 300px;
+        text-align: center;
+        position: relative;
+    }
+</style>

@@ -31,11 +31,13 @@ class StyleGanEncoding():
         self.w_src_orig = None
 
         self.img_size = 512
+        self.fixedLayerRanges = [0,8]
 
         self.call_func_names = {
             'initApp': self.makeModels,
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff,
+            'changeFixedLayers': self.changeFixedLayers,
             'clear': self.clear
         }
 
@@ -75,6 +77,11 @@ class StyleGanEncoding():
         coeffVal = float(params.coeff)
         self.moveLatentAndGenerate(self.w_src, self.direction, coeffVal, hasAttrChanged=hasAttrChanged)
     
+    def changeFixedLayers(self, params=None):
+        print("changeFixedLayers ", params)
+        self.fixedLayerRanges = params.fix_layer_ranges
+        # self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+    
     def clear(self, params=None):
         print("clear ", params)
         self.w_src = self.w_src_orig
@@ -89,13 +96,14 @@ class StyleGanEncoding():
     def moveLatentAndGenerate(self, latent_vector, direction, coeff, hasAttrChanged=False):
         coeff = -1 * coeff
         new_latent_vector = latent_vector.copy()
-        new_latent_vector[0][:8] = (latent_vector[0] + coeff*direction)[:8]
+        minLayerIdx = self.fixedLayerRanges[0]
+        maxLayerIdx = self.fixedLayerRanges[1]
+        new_latent_vector[0][minLayerIdx:maxLayerIdx] = (latent_vector[0] + coeff*direction)[minLayerIdx:maxLayerIdx]
         if hasAttrChanged:
             self.w_src = new_latent_vector
         images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        # result.save('results/exm.png')
         self.broadcastImg(resImg, imgSize=self.img_size)
 
     def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
