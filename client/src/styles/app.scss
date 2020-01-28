@@ -1,0 +1,59 @@
+#app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #e6ecf1;
+  font-family: "Roboto", sans-serif;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-phone {
+  background-color: white;
+  height: 900px;
+  width: 1024px;
+  overflow: hidden;
+}
+
+.phone-header {
+  height: 50px;
+  width: 100%;
+  position: sticky;
+  background: #fafafa;
+  top: 0;
+  z-index: 99;
+  img {
+    max-width: 120px;
+    display: block;
+    margin: 0 auto;
+    padding-top: 1px;
+  }
+}
+
+.phone-body {
+  height: 100%;
+  .selected_image {
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center center;
+    height: 875px;
+  }
+}
+
+.phone-footer {
+  height: 35px;
+  width: 1024px;
+  position: sticky;
+  position: -webkit-sticky;
+  bottom:0;
+  z-index: 99;
+  background: #fafafa;
+
+  .home-btn {
+    position: absolute;
+    left:10px;
+    top:6px;
+    cursor: pointer;
+  }
+}

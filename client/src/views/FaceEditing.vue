@@ -63,6 +63,7 @@ export default {
             //face editing
             attributes: [
                     {name: 'smile', coeff: 0.0}, 
+                    {name: 'smilelearned', coeff: 0.0}, 
                     {name: 'gender', coeff: 0.0},
                     {name: 'age', coeff: 0.0},
                     {name: 'beauty', coeff: 0.0},

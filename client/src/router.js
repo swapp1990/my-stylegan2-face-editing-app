@@ -2,6 +2,7 @@ import Vue from 'vue';
 import Router from 'vue-router';
 
 import FaceEditView from './views/FaceEditing.vue';
+import FaceEditingUI from './views/FaceEditingNiceUI.vue';
 
 Vue.use(Router);
 
