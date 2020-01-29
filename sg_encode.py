@@ -104,6 +104,7 @@ class StyleGanEncoding():
         images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        # resImg.save("resImg.jpg") 
         self.broadcastImg(resImg, imgSize=self.img_size)
 
     def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):

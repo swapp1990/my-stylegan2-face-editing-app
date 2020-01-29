@@ -30,6 +30,9 @@ def connect():
     thread2 = workerCls.Worker(1, socketio=socketio)
     thread2.start()
 
+    msg = {'id': 0, 'action': 'makeModel'}
+    workerCls.broadcast_event(msg)
+
 @socketio.on('initApp')
 def initApp(config):
     print('initApp ', config)
