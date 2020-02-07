@@ -38,7 +38,8 @@ class StyleGanEncoding():
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff,
             'changeFixedLayers': self.changeFixedLayers,
-            'clear': self.clear
+            'clear': self.clear,
+            'generateRandomSrcImg': self.generateRandomSrcImg
         }
 
     ############################## Client Edit Actions #####################################
@@ -128,7 +129,7 @@ class StyleGanEncoding():
     ################### Thread Methods ###################################
     def doWork(self, msg):
         if isinstance(msg, ED.EasyDict):
-            self.call_func_names[msg.actionData.action](ED.EasyDict(msg.actionData.params))
+            self.call_func_names[msg.actionData.action](ED.EasyDict(msg.actionData.params)) 
         elif msg['action'] == 'initApp':
             self.initApp(msg['config'])
         elif msg['action'] == 'makeModel':

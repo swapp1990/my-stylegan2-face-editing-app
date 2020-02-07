@@ -6,32 +6,12 @@
                 <div>Face Editing</div>
                 <div class="row">
                     <div class="col-sm-6" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
-                        <button @click="clear()">Clear</button>
-                        <button @click="randomize()">Random</button>
+                        <a href='#' class='cta'>
+                            <i class='fas fa-check icon'></i>
+                        </a>
+                        <!-- <button @click="clear()">Clear</button>
+                        <button @click="randomize()">Random</button> -->
                     </div>
-                    <!-- <div class="col-sm-6">
-                        <div class="row">
-                            <div class="col-sm-4">
-                                <button @click="clear()">Clear</button>
-                                <button @click="randomize()">Random</button>
-                            </div>
-                            <div class="col-sm-8">
-                                <div class="p-2">
-                                    <div class="range-slider">
-                                        <span>Fix DLatent Layers from {{fix_layer_ranges[0]}} to {{fix_layer_ranges[1]}}</span><br>
-                                        <input @change="changeLayerMixRange" v-model.number="fix_layer_ranges[0]" min="0" max="18" step="1" type="range" />
-                                        <input @change="changeLayerMixRange" v-model.number="fix_layer_ranges[1]" min="0" max="18" step="1" type="range" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <hr>
-                        <div v-for="attr in attributes" class="p-2">
-                            <span class="mr-3">{{attr.name}}</span>
-                            <input type="range" id="customRange1" min="-12" max="12" step="0.5" v-on:change="changeCoeff(attr)" v-model="attr.coeff">
-                            <span class="ml-3">Coeff: {{attr.coeff}}</span>
-                        </div>
-                    </div> -->
                 </div>
             </div>
         </div>
@@ -202,7 +182,40 @@ export default {
     }
 }
 </script>
-<style scoped>
+<style scoped lang="scss">
+    $mainC: #f1f3f6;
+    $secC: #9dabc0;
+    %center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .cta {
+        @extend %center; 
+        width: 66px;
+        height: 66px;
+        background: $mainC;
+        border-radius: 20px;
+        box-shadow: 
+            inset 0 0 15px rgba(55, 84, 170,0),
+            inset 0 0 20px rgba(255, 255, 255,0),
+            7px 7px 15px rgba(55, 84, 170,.15),
+            -7px -7px 20px rgba(255, 255, 255,1),
+            inset 0px 0px 4px rgba(255, 255, 255,.2);
+        .icon {
+            @extend %center; 
+            color: $secC;
+            height: 30px;
+            width: 30px;
+        }
+        &:hover {
+            box-shadow: 
+            inset 7px 7px 15px rgba(55, 84, 170,.15),
+            inset -7px -7px 20px rgba(255, 255, 255,1),
+            0px 0px 4px rgba(255, 255, 255,.2);
+        }
+        transition: box-shadow 399ms ease-in-out;
+    }
     #faceImg {
         margin: 0 auto;
         width: 512px;
