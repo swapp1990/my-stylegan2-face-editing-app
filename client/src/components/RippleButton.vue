@@ -46,6 +46,7 @@
 $black: #000;
 $white: #fff;
 $shocking-pink: #ff1ead;
+$golden-orange: #d35400;
 
 .btnContainer {
     font-family: Inconsolata, monospace;
@@ -71,10 +72,28 @@ $shocking-pink: #ff1ead;
     outline: none;
 	display: inline-block;
 	position: relative;
+    transition: .5s;
+}
+
+.ti-btn:before {
+border-radius:50%;
+  background: #d35400;
+  transition: .5s;
+  transform: scale(.9);
+}
+.ti-btn:hover:before {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px $golden-orange;
+  filter: blur(5px);
+}
+.ti-btn:hover {
+  color: #ffa502;
+  box-shadow: 0 0 19px $golden-orange;
+  text-shadow: 0 0 30px $golden-orange;
 }
 
 .ripple {
-	background-color: $shocking-pink;
+	background-color: $golden-orange;
 	width: 1rem;
 	height: 1rem;
 	position: absolute;
