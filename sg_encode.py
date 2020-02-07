@@ -6,11 +6,13 @@ import dnnlib.tflib as tflib
 import pretrained_networks
 import os
 import mpld3
+import pickle
+import gzip
 from server.threads import Worker as workerCls
+from easydict import EasyDict
 
-import EasyDict as ED
-
-network_pkl = 'cache/generator_model-stylegan2-config-f.pkl' 
+network_pkl = 'cache/generator_model-stylegan2-config-f.pkl'
+facial_attributes_list = 'https://drive.google.com/uc?id=1xMM3AFq0r014IIhBLiMCjKJJvbhLUQ9t'
 
 class StyleGanEncoding():
     def __init__(self):
@@ -29,6 +31,9 @@ class StyleGanEncoding():
         self.w_avg = None
         self.w_src = None
         self.w_src_orig = None
+        #Search
+        self.attr_labels = None
+        self.dlatent_to_labels = None
 
         self.img_size = 512
         self.fixedLayerRanges = [0,8]
@@ -39,17 +44,20 @@ class StyleGanEncoding():
             'changeCoeff': self.changeCoeff,
             'changeFixedLayers': self.changeFixedLayers,
             'clear': self.clear,
-            'generateRandomSrcImg': self.generateRandomSrcImg
+            'sendSearchedImages': self.sendSearchedImages
         }
 
     ############################## Client Edit Actions #####################################
     def makeModels(self, params=None):
         _G, _D, self.Gs = pretrained_networks.load_networks(network_pkl)
         self.w_avg = self.Gs.get_var('dlatent_avg')
-        print("made models")
+        print("made models ", self.w_avg.shape)
         
         self.direction = np.load('latent_directions/' + self.selected_attr)
-        print("loaded latents")
+        print("loaded latents ", self.direction.shape)
+
+        self.loadAttributeLabelMapping()
+
         # Generate random latent
         z = np.random.randn(1, *self.Gs.input_shape[1:])
         self.w_src = self.Gs.components.mapping.run(z, None)
@@ -89,6 +97,60 @@ class StyleGanEncoding():
         self.selected_attr = self.attr_list[0]+'.npy'
         self.direction = np.load('latent_directions/' + self.selected_attr)
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+
+    ############################## Client Search Actions #####################################
+    def loadAttributeLabelMapping(self):
+        with dnnlib.util.open_url(facial_attributes_list, cache_dir='cache') as f:
+            qlatent_data, self.dlatent_to_labels, self.attr_labels = pickle.load(gzip.GzipFile(fileobj=f))
+        print("loaded attributes mapping")
+    
+    def sendSearchedImages(self, params=None):
+        dlatent_added = []
+        for i, l in enumerate(self.attr_labels):
+            l_dict = EasyDict(l)
+            hairColors = l_dict.faceAttributes.hair.hairColor
+            for c in hairColors:
+                if c.confidence == 1.0:
+                    if c.color == 'brown':
+                        dlatent_added.append(self.dlatent_to_labels[i])
+        print("Found %d matching results", len(dlatent_added))
+        new_latent_vector = np.array(dlatent_added[:2])
+        images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[1], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
+
+    #Testing
+    def loadFaceAttributes(self):
+        with dnnlib.util.open_url(facial_attributes_list, cache_dir='cache') as f:
+            qlatent_data, dlatent_data, labels_data = pickle.load(gzip.GzipFile(fileobj=f))
+        # print(labels_data[0])
+        dlatent_added = []
+        for i, l in enumerate(labels_data):
+            # if i == 0:
+            l_dict = EasyDict(l)
+            hairColors = l_dict.faceAttributes.hair.hairColor
+            for c in hairColors:
+                if c.confidence == 1.0:
+                    if c.color == 'brown':
+                        dlatent_added.append(dlatent_data[i])
+        # print(len(dlatent_added))
+        print(dlatent_added[0].shape)
+        _G, _D, self.Gs = pretrained_networks.load_networks(network_pkl)
+        new_latent_vector = np.array(dlatent_added[:2])
+        print(new_latent_vector.shape)
+        images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
+        print(images.shape)
+        # canvas = PIL.Image.new('RGB', (1024*2, 1024), 'white')
+        # image_iter = iter(list(images))
+        # for i in range(len(list(images))):
+        #     image = PIL.Image.fromarray(next(image_iter), 'RGB')
+        #     canvas.paste(image, (0*i,0))
+        # canvas.save('resimg.jpg')
+        resImg = PIL.Image.fromarray(images[1], 'RGB')
+        # resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        resImg.save("resImg.jpg") 
+
 ###############################################################################################
     def setNewAttr(self, attrName):
         self.selected_attr = attrName+'.npy'
@@ -97,6 +159,7 @@ class StyleGanEncoding():
     def moveLatentAndGenerate(self, latent_vector, direction, coeff, hasAttrChanged=False):
         coeff = -1 * coeff
         new_latent_vector = latent_vector.copy()
+        print(type(new_latent_vector), new_latent_vector.shape)
         minLayerIdx = self.fixedLayerRanges[0]
         maxLayerIdx = self.fixedLayerRanges[1]
         new_latent_vector[0][minLayerIdx:maxLayerIdx] = (latent_vector[0] + coeff*direction)[minLayerIdx:maxLayerIdx]
@@ -105,7 +168,7 @@ class StyleGanEncoding():
         images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        # resImg.save("resImg.jpg") 
+        resImg.save("resImg.jpg") 
         self.broadcastImg(resImg, imgSize=self.img_size)
 
     def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
@@ -128,11 +191,17 @@ class StyleGanEncoding():
 
     ################### Thread Methods ###################################
     def doWork(self, msg):
-        if isinstance(msg, ED.EasyDict):
-            self.call_func_names[msg.actionData.action](ED.EasyDict(msg.actionData.params)) 
+        if isinstance(msg, EasyDict):
+            self.call_func_names[msg.action](msg.params) 
         elif msg['action'] == 'initApp':
             self.initApp(msg['config'])
         elif msg['action'] == 'makeModel':
             self.makeModels()
         # elif msg['action'] == 'randomize':
         #     self.generateRandomSrcImg()
+
+    ############### Main 
+if __name__ == "__main__":
+    sge = StyleGanEncoding()
+    # sge.loadFaceAttributes()
+    # sge.makeModels()

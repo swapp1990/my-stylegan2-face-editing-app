@@ -7,7 +7,7 @@ import logging
 #my classes
 from server.threads import Worker as workerCls
 import sg_encode
-import EasyDict as ED
+from easydict import EasyDict
 
 # instantiate the app
 app = Flask(__name__)
@@ -37,10 +37,10 @@ def connect():
         connectedToClient = True
     else:
         actionData = {'action': 'randomize', 'params': {}}
-        print('editAction ', ED.EasyDict(actionData))
-        actions_kwargs = ED.EasyDict()
+        print('editAction ', EasyDict(actionData))
+        actions_kwargs = EasyDict()
         actions_kwargs.id = 0
-        actions_kwargs.actionData = ED.EasyDict(actionData)
+        actions_kwargs.actionData = EasyDict(actionData)
         workerCls.broadcast_event(actions_kwargs)
 
 @socketio.on('initApp')
@@ -51,8 +51,8 @@ def initApp(config):
 
 @socketio.on('editAction')
 def editActions(actionData):
-    print('editAction ', ED.EasyDict(actionData))
-    actions_kwargs = ED.EasyDict()
+    print('editAction ', EasyDict(actionData))
+    actions_kwargs = EasyDict(actionData)
     actions_kwargs.id = 0
-    actions_kwargs.actionData = ED.EasyDict(actionData)
+    print(actions_kwargs)
     workerCls.broadcast_event(actions_kwargs)

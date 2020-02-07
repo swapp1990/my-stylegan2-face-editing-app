@@ -3,7 +3,7 @@
         <header>
             <nav>
                 <button type="button" class="menuBtn"><i class='fas fa-arrow-left icon'></i></button>
-                <button type="button"  class="menuBtn" @click="initApp"><i class='fas fa-search icon'></i></button>
+                <button type="button"  class="menuBtn" @click="searchImg"><i class='fas fa-search icon'></i></button>
             </nav>
         </header>
         <main>
@@ -153,6 +153,9 @@ import rippleBtn from '@/components/RippleButton.vue';
             changeCoeff(attr) {
                 let params = {"attrName":attr.name, "coeff": attr.coeff};
                 this.sendEditAction("changeCoeff", params);
+            },
+            searchImg() {
+                this.sendEditAction("sendSearchedImages", {});
             },
             sendEditAction(actionName, params) {
                 let msg = {};
