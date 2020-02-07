@@ -101,7 +101,9 @@ export default {
             return classes;
         },
         connectSocket() {
-            this.socket = io.connect('http://127.0.0.1:5000');
+            let SERVER_URL = "34.220.114.16";
+            SERVER_URL = "localhost"
+            this.socket = io.connect(SERVER_URL+':5000');
             this.socket.on('connect',()=>{
                 console.log("connected");
                 this.onConnected();
