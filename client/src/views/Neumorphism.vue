@@ -1,37 +1,46 @@
 <template>
-    <div class="container">
-        <header>
-            <nav>
-                <button type="button" class="menuBtn"><i class='fas fa-arrow-left icon'></i></button>
-                <search-expand text="hair is black" @onEnter="searchEnter"></search-expand>
-                <button type="button"  class="menuBtn" @click="randomize"><i class='fas fa-random icon'></i></button>
-            </nav>
-        </header>
-        <main>
-            <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
-                <div></div>
-                <div class="attrMenu">
-                    <nav>
-                        <ripple-btn text="test" @click="changeAttr(0)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                        <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                        <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                        <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                    </nav>
+    <div>
+        <div class="container">
+            <header>
+                <nav>
+                    <button type="button" class="menuBtn"><i class='fas fa-arrow-left icon'></i></button>
+                    <search-expand text="hair is black" @onEnter="searchEnter"></search-expand>
+                    <button type="button"  class="menuBtn" @click="randomize"><i class='fas fa-random icon'></i></button>
+                </nav>
+            </header>
+            <main>
+                <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
+                    <div></div>
+                    <div class="attrMenu">
+                        <nav>
+                            <ripple-btn text="test" @click="changeAttr(0)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                            <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                            <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                            <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                        </nav>
+                    </div>
                 </div>
-            </div>
-            <!-- <h1 class="t1">History</h1> -->
-        </main>
+                <!-- <h1 class="t1">History</h1> -->
+            </main>
+        </div>
+        <div class="grid">
+            <fractalGrid></fractalGrid>
+        </div>
     </div>
+    
 </template>
 
 <script>
 import rippleBtn from '@/components/RippleButton.vue';
 import searchExpand from '@/components/FancySearch.vue';
+import fractalGrid from '@/components/FractalGrid.vue';
+
     export default {
         name: "neuMenu",
         components: {
             rippleBtn: rippleBtn,
-            searchExpand: searchExpand
+            searchExpand: searchExpand,
+            fractalGrid: fractalGrid
         },
         data() {
             return {
@@ -224,9 +233,17 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
         padding: 1rem 1.5rem;
         border-radius: $radius;
         box-shadow: $shadow;
-        border-radius: $radius;
         cursor: pointer;
         text-transform: uppercase;
+        margin-bottom: 30px;
+    }
+    .grid {
+        background-color: #f5f6f7;
+        height: 100%;
+        width: 100%;
+        padding: 1rem 1.5rem;
+        border-radius: $radius;
+        box-shadow: $shadow;
     }
     nav {
         display: flex;

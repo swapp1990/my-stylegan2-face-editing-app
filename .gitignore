@@ -129,3 +129,4 @@ plots/
 dnnlib/tflib/_cudacache/
 resources/
 results/
+client/src/assets/
