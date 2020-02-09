@@ -38,10 +38,10 @@ def connect():
     else:
         actionData = {'action': 'randomize', 'params': {}}
         print('editAction ', EasyDict(actionData))
-        actions_kwargs = EasyDict()
-        actions_kwargs.id = 0
-        actions_kwargs.actionData = EasyDict(actionData)
-        workerCls.broadcast_event(actions_kwargs)
+        # actions_kwargs = EasyDict()
+        # actions_kwargs.id = 0
+        # actions_kwargs.actionData = EasyDict(actionData)
+        # workerCls.broadcast_event(actions_kwargs)
 
 @socketio.on('initApp')
 def initApp(config):
@@ -56,3 +56,4 @@ def editActions(actionData):
     actions_kwargs.id = 0
     print(actions_kwargs)
     workerCls.broadcast_event(actions_kwargs)
+    

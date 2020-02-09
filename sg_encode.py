@@ -32,8 +32,9 @@ class StyleGanEncoding():
         self.w_src = None
         self.w_src_orig = None
         #Search
-        self.attr_labels = None
-        self.dlatent_to_labels = None
+        # self.attr_labels = []
+        # self.dlatent_to_labels = None
+        self.savedAttrs = []
 
         self.img_size = 512
         self.fixedLayerRanges = [0,8]
@@ -100,25 +101,68 @@ class StyleGanEncoding():
 
     ############################## Client Search Actions #####################################
     def loadAttributeLabelMapping(self):
-        with dnnlib.util.open_url(facial_attributes_list, cache_dir='cache') as f:
-            qlatent_data, self.dlatent_to_labels, self.attr_labels = pickle.load(gzip.GzipFile(fileobj=f))
-        print("loaded attributes mapping")
+        pkl_file = open('results/savedAttr.pkl', 'rb')
+        self.savedAttrs = pickle.load(pkl_file)
+        print("loaded attributes mapping ", len(self.savedAttrs))
     
     def sendSearchedImages(self, params=None):
+        searchTxt = "hair is blond"
+        if params is not None:
+            searchTxt = params.searchTxt.lower()
+        attr_dict = self.getAttributesFromSearchtxt(searchTxt)
+        attr_dict_keys = list(attr_dict.keys())
+        print(attr_dict_keys, attr_dict)
         dlatent_added = []
-        for i, l in enumerate(self.attr_labels):
-            l_dict = EasyDict(l)
-            hairColors = l_dict.faceAttributes.hair.hairColor
-            for c in hairColors:
-                if c.confidence == 1.0:
-                    if c.color == 'brown':
-                        dlatent_added.append(self.dlatent_to_labels[i])
-        print("Found %d matching results", len(dlatent_added))
-        new_latent_vector = np.array(dlatent_added[:2])
-        images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
-        resImg = PIL.Image.fromarray(images[1], 'RGB')
+        for i, l in enumerate(self.savedAttrs):
+            # print(l['facesAttr'][0])
+            l_dict = EasyDict(l['facesAttr'][0])
+            if "hair" in attr_dict_keys:
+                hairColors = l_dict.faceAttributes.hair.hairColor
+                attr_vals = [attr_dict['hair']]
+                filtered_haircolors = [h for h in hairColors if h.color in attr_vals]
+                # print("filtered_haircolors ", filtered_haircolors)
+                for c in filtered_haircolors:
+                    if c.confidence == 1.0:
+                        dlatent = self.savedAttrs[i]['facesAttr']
+                        dlatent_added.append(dlatent)
+                if len(dlatent_added) == 0:
+                    for c in filtered_haircolors:
+                        if c.confidence >= 0.9:
+                            dlatent = self.savedAttrs[i]['facesAttr']
+                            dlatent_added.append(dlatent)
+
+        print("Found %d matching results" % len(dlatent_added))
+        start_idx = np.random.randint(0, len(dlatent_added))
+        print(start_idx)
+        mini_batch_size = 1
+        w_src = self.savedAttrs[start_idx]['wlatent']
+        images = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
+    
+    def testRandomSavedAttribute(self):
+        start_idx = np.random.randint(0, len(self.savedAttrs)-1)
+        # print(start_idx)
+        print(self.savedAttrs[start_idx]['facesAttr'])
+        w_src = self.savedAttrs[start_idx]['wlatent']
+        images = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
+
+    def getAttributesFromSearchtxt(self, searchTxt):
+        searchfor = ["hair", "haircolor"]
+        matchingAttr = [s for s in searchfor if s in searchTxt]
+        # print(matchingAttr)
+        if "hair" in matchingAttr:
+            searchfor = ["black", "brown", "blond", "red"]
+            matchingAttrVal = [s for s in searchfor if s in searchTxt]
+            # print(matchingAttr, matchingAttrVal)
+        attr_dict = EasyDict({})
+        for key, val in zip(matchingAttr, matchingAttrVal):
+            attr_dict[key] = val
+        return attr_dict
 
     #Testing
     def loadFaceAttributes(self):
@@ -205,3 +249,6 @@ if __name__ == "__main__":
     sge = StyleGanEncoding()
     # sge.loadFaceAttributes()
     # sge.makeModels()
+    sge.loadAttributeLabelMapping()
+    sge.sendSearchedImages()
+    

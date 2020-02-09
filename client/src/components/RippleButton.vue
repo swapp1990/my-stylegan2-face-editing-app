@@ -77,7 +77,7 @@ $golden-orange: #d35400;
 
 .ti-btn:before {
 border-radius:50%;
-  background: #d35400;
+  background:rgba($golden-orange,.03);
   transition: .5s;
   transform: scale(.9);
 }
@@ -87,7 +87,7 @@ border-radius:50%;
   filter: blur(5px);
 }
 .ti-btn:hover {
-  color: #ffa502;
+//   color: #ffa502;
   box-shadow: 0 0 19px $golden-orange;
   text-shadow: 0 0 30px $golden-orange;
 }

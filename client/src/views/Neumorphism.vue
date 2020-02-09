@@ -3,16 +3,21 @@
         <header>
             <nav>
                 <button type="button" class="menuBtn"><i class='fas fa-arrow-left icon'></i></button>
-                <button type="button"  class="menuBtn" @click="searchImg"><i class='fas fa-search icon'></i></button>
+                <search-expand text="hair is black" @onEnter="searchEnter"></search-expand>
+                <button type="button"  class="menuBtn" @click="randomize"><i class='fas fa-random icon'></i></button>
             </nav>
         </header>
         <main>
-            <div id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
-                <ripple-btn text="test" @click="changeAttr(0)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                
+            <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
+                <div></div>
+                <div class="attrMenu">
+                    <nav>
+                        <ripple-btn text="test" @click="changeAttr(0)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                        <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                        <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                        <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                    </nav>
+                </div>
             </div>
             <!-- <h1 class="t1">History</h1> -->
         </main>
@@ -21,10 +26,12 @@
 
 <script>
 import rippleBtn from '@/components/RippleButton.vue';
+import searchExpand from '@/components/FancySearch.vue';
     export default {
         name: "neuMenu",
         components: {
-            rippleBtn: rippleBtn
+            rippleBtn: rippleBtn,
+            searchExpand: searchExpand
         },
         data() {
             return {
@@ -57,7 +64,8 @@ import rippleBtn from '@/components/RippleButton.vue';
                 src_face: null,
                 faceImageBG: "",
                 fix_layer_ranges: [0,8],
-                ripples: []
+                ripples: [],
+                searchTxt:"hair is brown"
             }
         },
         mounted(){
@@ -69,6 +77,9 @@ import rippleBtn from '@/components/RippleButton.vue';
             },
             connectSocket() {
                 this.socket = io.connect('http://127.0.0.1:5000');
+                if(this.socket.disconnected) {
+                    this.loadDefaultImg();
+                }
                 this.socket.on('connect',()=>{
                     console.log("connected");
                     this.onConnected();
@@ -81,6 +92,16 @@ import rippleBtn from '@/components/RippleButton.vue';
                     console.log('General ', content.action);
                     this.handleGeneralMsg(content);
                 });
+                this.socket.on('error', (err) => {
+                    console.log("Error!", err);
+                });
+            },
+            loadDefaultImg() {
+                // var base64Data = a.images[0].data;
+                console.log("loadDefaultImg");
+                var img = 'url("./resImg.jpg")';
+                console.log(img);
+                this.faceImageBG = img;
             },
             onConnected() {
                 this.socket.emit('init', this.training);
@@ -150,12 +171,21 @@ import rippleBtn from '@/components/RippleButton.vue';
                 }
                 // console.log(attr.name, attr.coeff);
             },
+            randomize() {
+                let params = {};
+                this.sendEditAction("randomize", params);
+            },
             changeCoeff(attr) {
                 let params = {"attrName":attr.name, "coeff": attr.coeff};
                 this.sendEditAction("changeCoeff", params);
             },
+            searchEnter(val) {
+                // console.log(val);
+                this.searchTxt = val;
+                this.searchImg()
+            },
             searchImg() {
-                this.sendEditAction("sendSearchedImages", {});
+                this.sendEditAction("sendSearchedImages", {"searchTxt": this.searchTxt});
             },
             sendEditAction(actionName, params) {
                 let msg = {};
@@ -232,6 +262,15 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
             &::after {
                 @extend %button-focus;
             }
+        }
+    }
+    .imgParent {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+
+        .attrMenu {
+            // border: 1px solid red;
         }
     }
 

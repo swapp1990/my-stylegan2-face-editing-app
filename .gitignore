@@ -128,3 +128,4 @@ output/
 plots/
 dnnlib/tflib/_cudacache/
 resources/
+results/
