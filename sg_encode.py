@@ -8,8 +8,10 @@ import os
 import mpld3
 import pickle
 import gzip
+import time
 from server.threads import Worker as workerCls
 from easydict import EasyDict
+import faceMicrosoft as faceMicro
 
 network_pkl = 'cache/generator_model-stylegan2-config-f.pkl'
 facial_attributes_list = 'https://drive.google.com/uc?id=1xMM3AFq0r014IIhBLiMCjKJJvbhLUQ9t'
@@ -31,10 +33,12 @@ class StyleGanEncoding():
         self.w_avg = None
         self.w_src = None
         self.w_src_orig = None
+        self.w_src_curr = None
         #Search
         # self.attr_labels = []
         # self.dlatent_to_labels = None
         self.savedAttrs = []
+        self.currAttrDictToSave = {}
 
         self.img_size = 512
         self.fixedLayerRanges = [0,8]
@@ -45,8 +49,15 @@ class StyleGanEncoding():
             'changeCoeff': self.changeCoeff,
             'changeFixedLayers': self.changeFixedLayers,
             'clear': self.clear,
-            'sendSearchedImages': self.sendSearchedImages
+            'sendSearchedImages': self.sendSearchedImages,
+            'getAttributes': self.getAttributes,
+            'saveLatent': self.saveLatent
         }
+
+        savedDicts = []
+        output = open('results/savedAttrFromClient.pkl', 'wb')
+        pickle.dump(savedDicts,output)
+        output.close()
 
     ############################## Client Edit Actions #####################################
     def makeModels(self, params=None):
@@ -64,7 +75,11 @@ class StyleGanEncoding():
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
         self.w_src_orig = self.w_src
+        self.w_src_curr = self.w_src
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+
+        #send gallery
+        self.sendSavedGallery()
     
     def generateRandomSrcImg(self, params=None):
         print("generateRandomSrcImg ", params)
@@ -72,6 +87,7 @@ class StyleGanEncoding():
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
         self.w_src_orig = self.w_src
+        self.w_src_curr = self.w_src
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
 
     def changeCoeff(self, params=None):
@@ -82,6 +98,7 @@ class StyleGanEncoding():
             if attrName in self.attr_list:
                 self.setNewAttr(attrName)
                 hasAttrChanged = True
+                self.w_src = self.w_src_curr
         else:
             hasAttrChanged = False
         coeffVal = float(params.coeff)
@@ -95,9 +112,46 @@ class StyleGanEncoding():
     def clear(self, params=None):
         print("clear ", params)
         self.w_src = self.w_src_orig
+        self.w_src_curr = self.w_src_orig
         self.selected_attr = self.attr_list[0]+'.npy'
         self.direction = np.load('latent_directions/' + self.selected_attr)
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+
+    def getAttributes(self, params=None):
+        print('getAttributes')
+        self.currAttrDictToSave = faceMicro.callApi(self.w_src_curr)
+        print(self.currAttrDictToSave['facesAttr'])
+        msg = {'action': 'sendAttr', 'attr': self.currAttrDictToSave['facesAttr']}
+        self.broadcast(msg)
+
+    def saveLatent(self, params=None):
+        print('saveLatent')
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+        print("savedAttrs len ", len(savedAttrs), type(savedAttrs))
+
+        savedAttrs.append(self.currAttrDictToSave)
+        output = open('results/savedAttrFromClient.pkl', 'wb')
+        pickle.dump(savedAttrs,output)
+        output.close()
+
+        time.sleep(0.5)
+        self.sendSavedGallery()
+
+    def sendSavedGallery(self):
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+        print("send savedAttrs len ", len(savedAttrs), type(savedAttrs))
+        msg = {'action': 'sendGalleryReset'}
+        self.broadcast(msg)
+        for i in range(len(savedAttrs)):
+            w_src = savedAttrs[i]['wlatent']
+            images = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+            resImg = PIL.Image.fromarray(images[0], 'RGB')
+            resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+            self.broadcastImg(resImg, imgSize=self.img_size, tag="gallery"+str(i))
 
     ############################## Client Search Actions #####################################
     def loadAttributeLabelMapping(self):
@@ -211,13 +265,14 @@ class StyleGanEncoding():
         new_latent_vector[0][minLayerIdx:maxLayerIdx] = (latent_vector[0] + coeff*direction)[minLayerIdx:maxLayerIdx]
         if hasAttrChanged:
             self.w_src = new_latent_vector
+        self.w_src_curr = new_latent_vector
         images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        resImg.save("resImg.jpg") 
         self.broadcastImg(resImg, imgSize=self.img_size)
 
     def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
+        img.save("clientImg.jpg")
         my_dpi = 96
         # img_size = (256,256)
         fig = plt.figure(figsize=(imgSize/my_dpi, imgSize/my_dpi), dpi=my_dpi)

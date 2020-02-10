@@ -1,8 +1,8 @@
 <template>
     <div class="fg-container">
         <section class="grid-layout">
-            <figure v-for="i in imagesLen" class="grid-item">
-                <img src='@/assets/resImg.jpg' alt="">
+            <figure v-for="i in galleryImgs" class="grid-item">
+                <img :src='getImgData(i)' alt="">
                 <!-- <div class="gridImg" v-bind:style="{ 'background-image': faceImageBG}"></div> -->
             </figure>
 
@@ -13,11 +13,24 @@
 <script>
     export default {
         name: "fractalGrid",
+        props: ["galleryImgs"],
+        watch: {
+            galleryImgs() {
+                // console.log(this.galleryImgs);
+            }
+        },
         data() {
             return {
                 faceImageBG: "",
                 imagesLen: 16
             }
+        },
+        methods: {
+            getImgData(i) {
+                // console.log("getImgData ", i);
+                let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
+                return base64Png;
+            },
         },
         mounted() {
             var img = 'url("./resImg.jpg")';

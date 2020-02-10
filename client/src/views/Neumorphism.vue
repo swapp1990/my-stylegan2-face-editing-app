@@ -1,30 +1,46 @@
 <template>
     <div>
-        <div class="container">
-            <header>
-                <nav>
-                    <button type="button" class="menuBtn"><i class='fas fa-arrow-left icon'></i></button>
-                    <search-expand text="hair is black" @onEnter="searchEnter"></search-expand>
-                    <button type="button"  class="menuBtn" @click="randomize"><i class='fas fa-random icon'></i></button>
-                </nav>
-            </header>
-            <main>
-                <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
-                    <div></div>
-                    <div class="attrMenu">
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="container">
+                    <header>
                         <nav>
-                            <radial-btn><i class='far fa-grin-alt icon'></i></radial-btn>
-                            <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                            <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
-                            <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                            <button type="button" class="menuBtn" @click="getAttributes"><i class='fas fa-link icon'></i></button>
+                            <button type="button" class="menuBtn" @click="saveLatent"><i class='fas fa-save icon'></i></button>
+                            <search-expand text="hair is black" @onEnter="searchEnter"></search-expand>
+                            <button type="button"  class="menuBtn" @click="randomize"><i class='fas fa-random icon'></i></button>
                         </nav>
-                    </div>
+                    </header>
+                    <main>
+                        <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}">
+                            <div></div>
+                            <div class="attrMenu">
+                                <!-- <nav>
+                                    <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                                    <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                                    <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                                </nav> -->
+                                
+                            </div>
+                        </div>
+                        <div>
+                            {{faceAttributes}}
+                        </div>
+                        <!-- <h1 class="t1">History</h1> -->
+                    </main>
                 </div>
-                <!-- <h1 class="t1">History</h1> -->
-            </main>
+            </div>
+            <div class="col-sm-6">
+                <div v-for="attr in attributes" class="p-2">
+                    <span class="mr-3">{{attr.name}}</span>
+                    <input type="range" id="customRange1" min="-12" max="12" step="0.5" v-on:change="changeCoeff(attr)" v-model="attr.coeff">
+                    <span class="ml-3">Coeff: {{attr.coeff}}</span>
+                </div>
+            </div>
         </div>
+        
         <div class="grid">
-            <fractalGrid></fractalGrid>
+            <fractalGrid :galleryImgs="galleryImgs"></fractalGrid>
         </div>
     </div>
     
@@ -76,7 +92,27 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 faceImageBG: "",
                 fix_layer_ranges: [0,8],
                 ripples: [],
-                searchTxt:"hair is brown"
+                searchTxt:"hair is brown",
+                faceAttributes: {
+                    smile: 0.0,
+                    gender: "female",
+                    glasses: "NoGlasses",
+                    age: 21,
+                    facialHair: {
+                        moustache: 0,
+                        beard: 0,
+                        sideburns: 0
+                    },
+                    makeup: {
+                        eyeMakeup: false,
+                        lipMakeup: false
+                    },
+                    hair: {
+                        bald: 0,
+                        hairColor: "brown"
+                    }
+                },
+                galleryImgs: []
             }
         },
         mounted(){
@@ -139,6 +175,10 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 if(content.action) {
                     if(content.action == "sendImg") {
                         this.handleReceivedImg(content);
+                    } else if(content.action == "sendAttr") {
+                        this.handleReceivedAttr(content);
+                    } else if(content.action == "sendGalleryReset") {
+                        this.galleryImgs = [];
                     }
                 }
             },
@@ -149,15 +189,40 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 this.sendEditAction("initApp", params);
             },
             handleReceivedImg(content) {
-                content.fig.axes.forEach(a => {
-                    // console.log(a.images[0].data);
-                    var base64Data = a.images[0].data;
-                    var img = "url('data:image/png;base64, "+base64Data + "')";
-                    // document.body.style.backgroundImage = img; 
-                    this.faceImageBG = img;
-                    // this.src_face = {data: a.images[0].data, fn: content.filename};
-                    // var tmp_path = URL.createObjectURL('path/to/image.png');
-                });
+                if(content.tag.includes("gallery")) {
+                    // console.log(content.tag);
+                    let galleryIdx = content.tag.split("gallery")[1]
+                    console.log("galleryIdx ", galleryIdx);
+                    let galleryImg = {};
+                    galleryImg.galleryIdx = galleryIdx;
+                    content.fig.axes.forEach(a => {
+                        var base64Data = a.images[0].data;
+                        galleryImg.png = base64Data;
+                    });
+                    this.galleryImgs.push(galleryImg);
+                } else {
+                    content.fig.axes.forEach(a => {
+                        // console.log(a.images[0].data);
+                        var base64Data = a.images[0].data;
+                        var img = "url('data:image/png;base64, "+base64Data + "')";
+                        // document.body.style.backgroundImage = img; 
+                        this.faceImageBG = img;
+                        // this.src_face = {data: a.images[0].data, fn: content.filename};
+                        // var tmp_path = URL.createObjectURL('path/to/image.png');
+                    });
+                }
+            },
+            handleReceivedAttr(content) {
+                console.log(content);
+                let attrReceived = content.attr[0].faceAttributes;
+                this.faceAttributes.smile = attrReceived.smile;
+                this.faceAttributes.gender = attrReceived.gender;
+                this.faceAttributes.glasses = attrReceived.glasses;
+                this.faceAttributes.age = attrReceived.age;
+                this.faceAttributes.facialHair = attrReceived.facialHair;
+                this.faceAttributes.makeup = attrReceived.makeup;
+                this.faceAttributes.hair.bald = attrReceived.hair.bald;
+                this.faceAttributes.hair.hairColor = attrReceived.hair.hairColor[0].color;
             },
             testFunc() {
                 console.log("testFunc");
@@ -189,6 +254,12 @@ import fractalGrid from '@/components/FractalGrid.vue';
             changeCoeff(attr) {
                 let params = {"attrName":attr.name, "coeff": attr.coeff};
                 this.sendEditAction("changeCoeff", params);
+            },
+            getAttributes() {
+                this.sendEditAction("getAttributes", {});
+            },
+            saveLatent() {
+                this.sendEditAction("saveLatent", {});
             },
             searchEnter(val) {
                 // console.log(val);
@@ -291,6 +362,11 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
         .attrMenu {
             // border: 1px solid red;
         }
+    }
+
+    .attrMenu {
+        // position: absolute;
+        // left: 100;
     }
 
     .icon {
