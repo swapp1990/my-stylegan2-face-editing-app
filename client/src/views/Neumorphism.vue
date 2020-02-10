@@ -13,7 +13,7 @@
                     <div></div>
                     <div class="attrMenu">
                         <nav>
-                            <ripple-btn text="test" @click="changeAttr(0)"><i class='far fa-grin-alt icon'></i></ripple-btn>
+                            <radial-btn><i class='far fa-grin-alt icon'></i></radial-btn>
                             <ripple-btn text="test" @click="changeAttr(1)"><i class='far fa-grin-alt icon'></i></ripple-btn>
                             <ripple-btn text="test" @click="changeAttr(2)"><i class='far fa-grin-alt icon'></i></ripple-btn>
                             <ripple-btn text="test" @click="changeAttr(3)"><i class='far fa-grin-alt icon'></i></ripple-btn>
@@ -32,6 +32,7 @@
 
 <script>
 import rippleBtn from '@/components/RippleButton.vue';
+import radialBtn from '@/components/RadialButton.vue';
 import searchExpand from '@/components/FancySearch.vue';
 import fractalGrid from '@/components/FractalGrid.vue';
 
@@ -39,6 +40,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
         name: "neuMenu",
         components: {
             rippleBtn: rippleBtn,
+            radialBtn: radialBtn,
             searchExpand: searchExpand,
             fractalGrid: fractalGrid
         },
