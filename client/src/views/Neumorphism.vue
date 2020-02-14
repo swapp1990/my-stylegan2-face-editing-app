@@ -33,7 +33,11 @@
             <div class="col-sm-6">
                 <div v-for="attr in attributes" class="p-2">
                     <span class="mr-3">{{attr.name}}</span>
-                    <input type="range" id="customRange1" min="-12" max="12" step="0.5" v-on:change="changeCoeff(attr)" v-model="attr.coeff">
+                    <input type="checkbox" v-model="attr.clipTop" v-on:change="changeCoeff(attr)"> clip top
+                    <input type="checkbox" v-model="attr.clipBottom" v-on:change="changeCoeff(attr)"> clip bottom
+                    <input type="text" class="col-sm-2" v-model="attr.clipLimit" >
+                    <!-- <input type="text" class="col-sm-2" v-model="attr.clipExtend" > -->
+                    <input type="range" id="customRange1" min="-12" max="12" step="0.25" v-on:change="changeCoeff(attr)" v-model="attr.coeff">
                     <span class="ml-3">Coeff: {{attr.coeff}}</span>
                 </div>
             </div>
@@ -69,13 +73,13 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 training: true,
                 //face editing
                 attributes: [
-                        {name: 'smile', coeff: 0.0}, 
+                        {name: 'smile', coeff: 0.0, clipTop: false, clipBottom: false, clipLimit: 0.1}, 
                         {name: 'smilelearned', coeff: 0.0}, 
-                        {name: 'gender', coeff: 0.0},
-                        {name: 'age', coeff: 0.0},
+                        {name: 'gender', coeff: 0.0, clipTop: false, clipBottom: false, clipLimit: 0.1},
+                        {name: 'age', coeff: 0.0, clipTop: false, clipBottom: false, clipLimit: 0.1},
                         {name: 'beauty', coeff: 0.0},
                         {name: 'glasses', coeff: 0.0},
-                        {name: 'race_black', coeff: 0.0},
+                        {name: 'race_black', coeff: 0.0, clipTop: false, clipBottom: false, clipLimit: 0.1},
                         {name: 'race_yellow', coeff: 0.0},
                         {name: 'emotion_fear', coeff: 0.0},
                         {name: 'emotion_angry', coeff: 0.0},
@@ -252,8 +256,8 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 this.sendEditAction("randomize", params);
             },
             changeCoeff(attr) {
-                let params = {"attrName":attr.name, "coeff": attr.coeff};
-                this.sendEditAction("changeCoeff", params);
+                let params = attr;//{"attrName":attr.name, "coeff": attr.coeff, "clipTop": attr.clipTop, "clipBottom": attr.clipBottom};
+                this.sendEditAction("changeCoeff_clipped", params);
             },
             getAttributes() {
                 this.sendEditAction("getAttributes", {});

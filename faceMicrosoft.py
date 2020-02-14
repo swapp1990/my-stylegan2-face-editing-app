@@ -99,5 +99,20 @@ def callApi(w_src):
     mydict = {'facesAttr': facesAttr, 'wlatent': w_src}
     return mydict
 
+def callApi_wSrc():
+    headers = {'Content-Type': 'application/octet-stream',
+            'Ocp-Apim-Subscription-Key': subscription_key}
+    params = {
+        'returnFaceId': 'true',
+        'returnFaceLandmarks': 'false',
+        'returnFaceAttributes': 'age,gender,headPose,smile,facialHair,glasses,' +
+        'emotion,hair,makeup,occlusion,accessories,blur,exposure,noise'
+    }
+    image_data = open("genImg.jpg", "rb")
+    response = requests.post(face_api_url, params=params, headers=headers, data=image_data)
+    response.raise_for_status()
+    facesAttr = response.json()
+    return facesAttr
+
 # openSavedAttr()
 # saveAttrtoPkl()

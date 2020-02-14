@@ -30,6 +30,7 @@ class StyleGanEncoding():
         self.selected_attr = self.attr_list[0] +'.npy'
 
         self.direction = None
+        self.all_directions = {}
         self.w_avg = None
         self.w_src = None
         self.w_src_orig = None
@@ -39,6 +40,7 @@ class StyleGanEncoding():
         # self.dlatent_to_labels = None
         self.savedAttrs = []
         self.currAttrDictToSave = {}
+        self.freezeIdxs = []
 
         self.img_size = 512
         self.fixedLayerRanges = [0,8]
@@ -47,6 +49,7 @@ class StyleGanEncoding():
             'initApp': self.makeModels,
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff,
+            'changeCoeff_clipped': self.changeCoeff_clipped,
             'changeFixedLayers': self.changeFixedLayers,
             'clear': self.clear,
             'sendSearchedImages': self.sendSearchedImages,
@@ -71,6 +74,7 @@ class StyleGanEncoding():
         self.loadAttributeLabelMapping()
 
         # Generate random latent
+        np.random.seed(5)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
@@ -79,7 +83,7 @@ class StyleGanEncoding():
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
 
         #send gallery
-        self.sendSavedGallery()
+        # self.sendSavedGallery()
     
     def generateRandomSrcImg(self, params=None):
         print("generateRandomSrcImg ", params)
@@ -103,6 +107,21 @@ class StyleGanEncoding():
             hasAttrChanged = False
         coeffVal = float(params.coeff)
         self.moveLatentAndGenerate(self.w_src, self.direction, coeffVal, hasAttrChanged=hasAttrChanged)
+
+    def changeCoeff_clipped(self, params=None):
+        print("changeCoeff_clipped ", params)
+        coeffVal = -float(params.coeff)
+        attrName = params.name
+        hasAttrChanged = False
+        if attrName != self.selected_attr[:-4]:
+            if attrName in self.attr_list:
+                self.setNewAttr(attrName)
+                print("attr changed")
+                hasAttrChanged = True
+                self.w_src = self.w_src_curr
+        else:
+            hasAttrChanged = False
+        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal, clippedTop=True, clippedBottom=True, clipLimit=float(params.clipLimit), filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
     
     def changeFixedLayers(self, params=None):
         print("changeFixedLayers ", params)
@@ -161,6 +180,7 @@ class StyleGanEncoding():
     
     def sendSearchedImages(self, params=None):
         searchTxt = "hair is gray"
+        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
         if params is not None:
             searchTxt = params.searchTxt.lower()
         attr_dict = self.getAttributesFromSearchtxt(searchTxt)
@@ -197,6 +217,73 @@ class StyleGanEncoding():
         resImg.save("resImg.jpg")
         self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
     
+    def loadAllDirections(self):
+        for a in self.attr_list:
+            selectAttr = a+'.npy'
+            direction = np.load('latent_directions/' + selectAttr)
+            self.all_directions[a] = direction
+
+    def getSearchImage(self):
+        mini_bs = 1
+        w_src_all = []
+        
+        dir_list = [{'name': 'smile', 'coeff': -2.5, 'order': 0},]
+                    # {'name': 'smile', 'coeff': -1.0, 'order': 1},
+                    # {'name': 'smile', 'coeff': -2.5, 'order': 2},]
+                    # {'name': 'gender', 'coeff': 7.5, 'order': 1},]
+                    # {'name': 'race_black', 'coeff': 0.0, 'order': 0},
+                    # {'name': 'age', 'coeff': 5.5, 'order': 3}]
+        dir_list_ordered = sorted(dir_list, key=lambda k: k['order'])
+        # print(dir_list_ordered)
+        
+        fig = plt.figure(figsize=(6, 4))
+        
+        np.random.seed(0)
+        for i in range(mini_bs):
+            z = np.random.randn(1, *self.Gs.input_shape[1:])
+            w_src = self.Gs.components.mapping.run(z, None)
+            w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+            w_src_orig = w_src.copy()
+            for j,attr in enumerate(dir_list_ordered):
+                direction = self.all_directions[attr['name']]
+                coeff = attr['coeff']
+                # print(w_src[0].shape)
+                mean1 = np.mean(w_src[0], axis=0)
+                # print(mean1[0:4])
+                w_src[0][0:8] = (w_src[0] + coeff*direction)[0:8]
+                mean2 = np.mean(w_src[0], axis=0)
+                # print("A ", mean2[0:4])
+                w_diff = np.subtract(mean2, mean1)
+                ix = np.where(w_diff<-0.02)
+                print(ix)
+                for idx in ix:
+                    # print(w_src[0][0:8][0].shape)
+                    for l in range(8):
+                        # print("layer ", l, w_src[0][0:8][l][idx], w_src_orig[0][0:8][l][idx])
+                        w_src[0][0:18][l][idx] = w_src_orig[0][0:8][0][idx]
+                mean2 = np.mean(w_src[0], axis=0)
+                w_diff_2 = np.subtract(mean2, mean1)
+                y = np.arange(512)
+                ax1 = fig.add_subplot(2,1,1)
+                ax1.plot(y, w_diff, 'r')
+                ax2 = fig.add_subplot(2,1,2)
+                ax2.plot(y, w_diff_2, 'b')
+
+            w_src_all.append(w_src)
+        
+        plt.savefig('resPlot.jpg')
+        w_src_all = np.stack(w_src_all, axis=1)
+        self.Gs_kwargs.minibatch_size = mini_bs
+        images = self.Gs.components.synthesis.run(w_src_all[0], **self.Gs_kwargs)
+        # print(images.shape)
+        canvas = PIL.Image.new('RGB', (512*mini_bs, 512), 'white')
+        for (i,img) in enumerate(images):
+            resImg = PIL.Image.fromarray(img, 'RGB')
+            resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+            canvas.paste(resImg, (512*i,0))
+        # canvas.save("g_img.jpg")
+            self.broadcastImg(img)
+
     def testRandomSavedAttribute(self):
         start_idx = np.random.randint(0, len(self.savedAttrs)-1)
         # print(start_idx)
@@ -271,8 +358,93 @@ class StyleGanEncoding():
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImg(resImg, imgSize=self.img_size)
 
+    def moveLatent_clipped(self,latent_vector, direction,coeff, clippedTop=True, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, filename="results/resImg.jpg", hasAttrChanged=False):
+        w_curr = latent_vector.copy()
+        w_orig = latent_vector.copy()
+        
+        #Apply latent direction using the coeff value to the original w
+        w_curr[0][0:8] = (latent_vector[0] + coeff*direction)[0:8]
+        w_curr = self.clipW(w_orig, w_curr, clippedTop, clippedBottom, clipLimit, hasAttrChanged=hasAttrChanged)
+        
+        images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        # resImg.save(filename)
+        self.broadcastImg(resImg, imgSize=self.img_size)
+        return w_curr
+
+    def clipW(self, w_orig, w_curr, clippedTop=False, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, hasAttrChanged=False):
+        fig = plt.figure(figsize=(6, 4))
+        y = np.arange(512)
+        #Plot two graphs, original diff and after clipped diff
+        
+        mean1 = np.mean(w_orig[0], axis=0)
+        mean2 = np.mean(w_curr[0], axis=0)
+        w_diff = np.subtract(mean2, mean1)
+        #Plot the original difference after latent direction is applied to w
+        axes = fig.add_subplot(2,1,1)
+        axes.plot(y, w_diff, 'r')
+
+        #Clip top differences from the modified w
+        # clipLimit = 0.02
+        topIx = []
+        botIx = []
+        if clippedTop:
+            topIx = np.where(w_diff>clipLimit)[0]
+        if clippedBottom:
+            botIx = np.where(w_diff<-clipLimit)[0]
+        ix = np.concatenate((topIx, botIx), axis=0)
+        # print("ix ", ix)
+        n_layers = 8
+        curr_freeze, all_freeze = self.getFreezeIdxs()
+        # if not hasAttrChanged:
+        curr_freeze = []
+        print(self.freezeIdxs)
+        for idx in range(ix.shape[0]):
+            idxInW = int(ix[idx])
+            if idxInW not in all_freeze:
+                curr_freeze.append(idxInW)
+            else:
+                # print("Found repeat idx ", idxInW)
+                for l in range(n_layers):
+                    w_curr[0][l][idxInW] = w_orig[0][l][idxInW]
+        self.setFreezeIdxs(curr_freeze)
+        #         #Set the value for found indexes to be the original value, not the ones modified by the direction vector
+        #         # w_curr[0][l][idxInW] = w_orig[0][l][idxInW]
+        #         # w_curr[0][l][idxInW] += clipExtend
+
+        mean2 = np.mean(w_curr[0], axis=0)
+        w_diff = np.subtract(mean2, mean1)
+        #Plot the clipped differences
+        axes = fig.add_subplot(2,1,2)
+        axes.plot(y, w_diff, 'r')
+        plt.savefig('results/resPlot.jpg')
+        return w_curr
+
+    def getFreezeIdxs(self):
+        attrName = self.selected_attr[:-4]
+        currFreezeIdx = []
+        allFreezeIdx = []
+        found = False
+        for idx_dict in self.freezeIdxs:
+            currFreezeIdx = idx_dict['freeze']
+            if idx_dict['name'] == attrName:
+                found = True
+            else:
+                allFreezeIdx = allFreezeIdx + currFreezeIdx
+        if not found:
+            self.freezeIdxs.append({'name': attrName, 'freeze': []})
+        print(len(currFreezeIdx), len(allFreezeIdx))
+        return currFreezeIdx, allFreezeIdx
+
+    def setFreezeIdxs(self, idxs):
+        attrName = self.selected_attr[:-4]
+        for idx_dict in self.freezeIdxs:
+            if idx_dict['name'] == attrName:
+                idx_dict['freeze'] = idxs
+
     def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
-        img.save("clientImg.jpg")
+        img.save("results/clientImg.jpg")
         my_dpi = 96
         # img_size = (256,256)
         fig = plt.figure(figsize=(imgSize/my_dpi, imgSize/my_dpi), dpi=my_dpi)
@@ -306,6 +478,14 @@ if __name__ == "__main__":
     sge = StyleGanEncoding()
     # sge.loadFaceAttributes()
     sge.makeModels()
-    sge.loadAttributeLabelMapping()
-    sge.sendSearchedImages()
+    # sge.loadAttributeLabelMapping()
+    # sge.loadAllDirections()
+    # sge.getSearchImage()
+
     
+    params = EasyDict({'name': 'gender', 'coeff': '-5.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
+    sge.changeCoeff_clipped(params)
+    params = EasyDict({'name': 'smile', 'coeff': '4.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
+    sge.changeCoeff_clipped(params)
+    params = EasyDict({'name': 'race_black', 'coeff': '-8', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.3})
+    sge.changeCoeff_clipped(params)
