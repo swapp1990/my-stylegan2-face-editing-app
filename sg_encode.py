@@ -74,7 +74,7 @@ class StyleGanEncoding():
         self.loadAttributeLabelMapping()
 
         # Generate random latent
-        np.random.seed(5)
+        np.random.seed(7)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
@@ -363,7 +363,7 @@ class StyleGanEncoding():
         w_orig = latent_vector.copy()
         
         #Apply latent direction using the coeff value to the original w
-        w_curr[0][0:8] = (latent_vector[0] + coeff*direction)[0:8]
+        w_curr[0][0:18] = (latent_vector[0] + coeff*direction)[0:18]
         w_curr = self.clipW(w_orig, w_curr, clippedTop, clippedBottom, clipLimit, hasAttrChanged=hasAttrChanged)
         
         images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
@@ -395,7 +395,7 @@ class StyleGanEncoding():
             botIx = np.where(w_diff<-clipLimit)[0]
         ix = np.concatenate((topIx, botIx), axis=0)
         # print("ix ", ix)
-        n_layers = 8
+        n_layers = 18
         curr_freeze, all_freeze = self.getFreezeIdxs()
         # if not hasAttrChanged:
         curr_freeze = []

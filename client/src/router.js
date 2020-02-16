@@ -1,9 +1,9 @@
 import Vue from 'vue';
 import Router from 'vue-router';
 
-import FaceEditView from './views/FaceEditing.vue';
+import FaceEditView from './views/FaceEditing_old.vue';
 import FaceEditingUI from './views/FaceEditingNiceUI.vue';
-import neuMenu from './views/Neumorphism.vue';
+import Home from './views/Home.vue';
 import circleMenu from './views/CircularMenu.vue';
 
 Vue.use(Router);
@@ -14,7 +14,7 @@ export default new Router({
   routes: [
     {
       path: '/',
-      component: neuMenu
+      component: Home
     }
   ],
 });
