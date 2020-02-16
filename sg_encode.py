@@ -121,7 +121,8 @@ class StyleGanEncoding():
                 self.w_src = self.w_src_curr
         else:
             hasAttrChanged = False
-        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal, clippedTop=True, clippedBottom=True, clipLimit=float(params.clipLimit), filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
+
+        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal, clippedTop=True, clippedBottom=True, filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
     
     def changeFixedLayers(self, params=None):
         print("changeFixedLayers ", params)
@@ -149,7 +150,8 @@ class StyleGanEncoding():
         savedAttrs = pickle.load(pkl_file)
         pkl_file.close()
         print("savedAttrs len ", len(savedAttrs), type(savedAttrs))
-
+        
+        self.currAttrDictToSave = {'wlatent': self.w_src_curr}
         savedAttrs.append(self.currAttrDictToSave)
         output = open('results/savedAttrFromClient.pkl', 'wb')
         pickle.dump(savedAttrs,output)
@@ -358,7 +360,7 @@ class StyleGanEncoding():
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImg(resImg, imgSize=self.img_size)
 
-    def moveLatent_clipped(self,latent_vector, direction,coeff, clippedTop=True, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, filename="results/resImg.jpg", hasAttrChanged=False):
+    def moveLatent_clipped(self,latent_vector, direction,coeff, clippedTop=True, clippedBottom=False, clipLimit=0.2, clipExtend=0.15, filename="results/resImg.jpg", hasAttrChanged=False):
         w_curr = latent_vector.copy()
         w_orig = latent_vector.copy()
         

@@ -73,12 +73,13 @@
     box-shadow: 0 0 20px 0 rgba(0,0,0,0.25);
     z-index: 1;
     cursor: pointer;
-    // span {
-    //     position: relative;
-    //     font-size: 72px;
-    //     top: 5px;
-    //     left: -5px;
-    // }
+    span {
+        position: relative;
+        font-size: 15px;
+        font-weight: 600;
+        // top: 5px;
+        // left: -5px;
+    }
     
 
     &::after {

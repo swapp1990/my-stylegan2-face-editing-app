@@ -21,25 +21,25 @@
             <div class="wrapper">
                 <div class="item1">
                     <nav>
-                        <button v-for="attrTab in attributeTabs" type="button" class="attrTab"  @click="selectTab(attrTab)"><i class='fas' v-bind:class="attrTab.icon"></i></button>
+                        <button v-for="attrTab in attributeTabs" type="button" v-bind:class="getTabClass(attrTab)"  @click="selectTab(attrTab)"><i class='fas' v-bind:class="attrTab.icon"></i></button>
                     </nav>
                 </div>
                 <div class="item2">
                     <nav>
                         <div v-for="attr in filteredAttr">
-                            <div class="row">
-                                <div class="col-sm-4 ml-auto">
+                            <div class="d-flex flex-row">
+                                <div class="p-3">
                                     <!-- <span class="mr-3">{{attr.name}}</span> -->
-                                    <i v-bind:class="attr.icon"></i>
+                                    <i v-bind:class="getIcon(attr.icon)"></i>
                                 </div>
-                                <div class="col-sm-1">
-                                    <button type="button" @click="decCoeff(attr)"><i class='fas fa-minus icon'></i></button>
+                                <div class="p-1 align-middle">
+                                    <button type="button" @click="decCoeff(attr)"><i class='fas fa-minus'></i></button>
                                 </div>
-                                <div class="col-sm-1">
+                                <div class="p-1">
                                     <ripple-counter :txt="attr.coeff"></ripple-counter>
                                 </div>
-                                <div class="col-sm-1">
-                                    <button type="button" @click="incCoeff(attr)"><i class='fas fa-plus icon'></i></button>
+                                <div class="p-1">
+                                    <button type="button" @click="incCoeff(attr)"><i class='fas fa-plus'></i></button>
                                 </div>
                             </div>
                         </div>
@@ -140,6 +140,15 @@ import fractalGrid from '@/components/FractalGrid.vue';
             this.init();
         },
         methods: {
+            getIcon(iconClass) {
+                return iconClass + " fa-lg fa-fw";
+            },
+            getTabClass(attrTab) {
+                if(attrTab.name === this.selectedAttrTab) {
+                    return "attrTabSelected";
+                }
+                return "attrTab";
+            },
             selectTab(attrTab) {
                 this.selectedAttrTab = attrTab.name;
                 this.calculateFilteredAttr();
@@ -338,7 +347,9 @@ $black: #4a5568;
 $shocking-pink: #ff1ead;
 $dark: #DFE4EA;
 $shadow-tl: -4px -2px 4px 0px;
+$shadow-tl2: -4px -2px 0px 0px;
 $shadow-br: 4px 2px 6px 0px;
+$shadow-br2: 14px 2px 6px 0px;
 
 #faceImg {
     margin: 0 auto;
@@ -356,6 +367,8 @@ $shadow-br: 4px 2px 6px 0px;
 
 $shadow: $shadow-tl $white, $shadow-br $dark;
 $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
+$shadow2: $shadow-tl2 $white, $shadow-br2 $dark;
+
 %button {
     color: inherit;
     position: relative;
@@ -363,6 +376,23 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
     outline: none;
     border: none;
     box-shadow: $shadow;
+}
+
+%button2 {
+    color: inherit;
+    position: relative;
+    background: inherit;
+    outline: none;
+    border: none;
+    box-shadow: $shadow2;
+}
+%button2-focus {
+    color: inherit;
+    position: relative;
+    background: inherit;
+    outline: none;
+    border: none;
+    box-shadow: 2px 2px 2px 0px $dark inset, -2px -2px 2px 0px $white inset;
 }
 
 %button-focus {
@@ -396,7 +426,7 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
 .sidemenu {
     background-color: #f5f6f7;
     height: 400px;
-    width: 200px;
+    width: 240px;
     border-radius: $radius;
     box-shadow: $shadow;
     padding: 20px 20px 20px 0px;
@@ -425,7 +455,14 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
                     height: 380px;
 
                     .attrTab {
-                        @extend %button;
+                        @extend %button2;
+                        background: #f5f6f7;
+                        width: 30px;
+                        height: 70px;
+                    }
+                    .attrTabSelected {
+                        @extend %button2-focus;
+                        background: #f5f6f7;
                         width: 30px;
                         height: 70px;
                     }
