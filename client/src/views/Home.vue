@@ -21,6 +21,7 @@
             <div class="wrapper">
                 <div class="item1">
                     <nav>
+                        <button @click="reset" class='attrTab'><i class='fas fa-sync icon'></i></button>
                         <button v-for="attrTab in attributeTabs" type="button" v-bind:class="getTabClass(attrTab)"  @click="selectTab(attrTab)"><i class='fas' v-bind:class="attrTab.icon"></i></button>
                     </nav>
                 </div>
@@ -41,6 +42,9 @@
                                 <div class="p-1">
                                     <button type="button" @click="incCoeff(attr)"><i class='fas fa-plus'></i></button>
                                 </div>
+                                <!-- <div class="p-1">
+                                    <input type="checkbox" v-model="attr.freeze">
+                                </div> -->
                             </div>
                         </div>
                         <!-- <button  type="button" class="attrTab"  @click="selectTab">{{attr.name}}</button> -->
@@ -154,7 +158,11 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 this.calculateFilteredAttr();
             },
             reset() {
-
+                this.sendEditAction("clear", {});
+                this.attributes.forEach(a => {
+                    a.coeff = 0.0;
+                    a.freeze = true;
+                });
             },
             init() {
                 //Calculate filterAttributes
@@ -295,11 +303,11 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 this.sendEditAction("randomize", params);
             },
             decCoeff(attr) {
-                attr.coeff -= 0.25;
+                attr.coeff -= 0.5;
                 this.changeCoeff(attr);
             },
             incCoeff(attr) {
-                attr.coeff += 0.25;
+                attr.coeff += 0.5;
                 this.changeCoeff(attr);
             },
             changeCoeff(attr) {

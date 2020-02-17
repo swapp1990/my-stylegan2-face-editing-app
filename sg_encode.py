@@ -121,8 +121,7 @@ class StyleGanEncoding():
                 self.w_src = self.w_src_curr
         else:
             hasAttrChanged = False
-
-        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal, clippedTop=True, clippedBottom=True, filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
+        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal,clippedTop=True, clippedBottom=True, filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
     
     def changeFixedLayers(self, params=None):
         print("changeFixedLayers ", params)
@@ -136,6 +135,7 @@ class StyleGanEncoding():
         self.selected_attr = self.attr_list[0]+'.npy'
         self.direction = np.load('latent_directions/' + self.selected_attr)
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+        self.freezeIdxs = []
 
     def getAttributes(self, params=None):
         print('getAttributes')
@@ -388,29 +388,25 @@ class StyleGanEncoding():
         axes.plot(y, w_diff, 'r')
 
         #Clip top differences from the modified w
-        # clipLimit = 0.02
-        topIx = []
-        botIx = []
-        if clippedTop:
-            topIx = np.where(w_diff>clipLimit)[0]
-        if clippedBottom:
-            botIx = np.where(w_diff<-clipLimit)[0]
-        ix = np.concatenate((topIx, botIx), axis=0)
-        # print("ix ", ix)
+        pos_ix = self.getPossibleClippedIdxs(w_diff)
         n_layers = 18
         curr_freeze, all_freeze = self.getFreezeIdxs()
         # if not hasAttrChanged:
         curr_freeze = []
-        print(self.freezeIdxs)
-        for idx in range(ix.shape[0]):
-            idxInW = int(ix[idx])
-            if idxInW not in all_freeze:
-                curr_freeze.append(idxInW)
-            else:
-                # print("Found repeat idx ", idxInW)
+        overlapping_idxs = []
+        # print("freezeIdxs ", self.freezeIdxs)
+        for idx in range(512):
+            if idx in pos_ix:
+                if idx not in all_freeze:
+                    curr_freeze.append(idx)
+                else:
+                    overlapping_idxs.append(idx)
+            if idx in all_freeze:
                 for l in range(n_layers):
-                    w_curr[0][l][idxInW] = w_orig[0][l][idxInW]
+                    w_curr[0][l][idx] = w_orig[0][l][idx]
         self.setFreezeIdxs(curr_freeze)
+        # print("overlapping_idxs ", overlapping_idxs)
+        # print("curr_freeze ", curr_freeze)
         #         #Set the value for found indexes to be the original value, not the ones modified by the direction vector
         #         # w_curr[0][l][idxInW] = w_orig[0][l][idxInW]
         #         # w_curr[0][l][idxInW] += clipExtend
@@ -422,6 +418,23 @@ class StyleGanEncoding():
         axes.plot(y, w_diff, 'r')
         plt.savefig('results/resPlot.jpg')
         return w_curr
+
+    def getPossibleClippedIdxs(self, w_diff):
+        clipLimit = 0.3
+        topIx = []
+        botIx = []
+        topIx = np.where(w_diff>clipLimit)[0]
+        botIx = np.where(w_diff<-clipLimit)[0]
+        ix = np.concatenate((topIx, botIx), axis=0)
+        while ix.shape[0] == 0 and clipLimit >0.06:
+            clipLimit -= 0.05
+            topIx = []
+            botIx = []
+            topIx = np.where(w_diff>clipLimit)[0]
+            botIx = np.where(w_diff<-clipLimit)[0]
+            ix = np.concatenate((topIx, botIx), axis=0)
+        print("ix len %d, clip limit %f"% (ix.shape[0], clipLimit))
+        return ix
 
     def getFreezeIdxs(self):
         attrName = self.selected_attr[:-4]
