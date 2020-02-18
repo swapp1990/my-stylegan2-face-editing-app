@@ -72,9 +72,10 @@ class StyleGanEncoding():
         print("loaded latents ", self.direction.shape)
 
         self.loadAttributeLabelMapping()
+        self.loadAllDirections()
 
         # Generate random latent
-        np.random.seed(7)
+        np.random.seed(10)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
@@ -121,7 +122,8 @@ class StyleGanEncoding():
                 self.w_src = self.w_src_curr
         else:
             hasAttrChanged = False
-        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal,clippedTop=True, clippedBottom=True, filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
+        resImg, self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal,clippedTop=True, clippedBottom=True, filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
+        self.broadcastImg(resImg, imgSize=self.img_size)
     
     def changeFixedLayers(self, params=None):
         print("changeFixedLayers ", params)
@@ -181,66 +183,110 @@ class StyleGanEncoding():
         print("loaded attributes mapping ", len(self.savedAttrs))
     
     def sendSearchedImages(self, params=None):
-        searchTxt = "hair is gray"
-        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
-        if params is not None:
-            searchTxt = params.searchTxt.lower()
-        attr_dict = self.getAttributesFromSearchtxt(searchTxt)
-        attr_dict_keys = list(attr_dict.keys())
-        print(attr_dict_keys, attr_dict)
-        dlatent_added = []
-        for i, l in enumerate(self.savedAttrs):
-            # print(len(l['facesAttr']))
-            if len(l['facesAttr']) > 0:
-                l_dict = EasyDict(l['facesAttr'][0])
-                if "hair" in attr_dict_keys:
-                    hairColors = l_dict.faceAttributes.hair.hairColor
-                    attr_vals = [attr_dict['hair']]
-                    filtered_haircolors = [h for h in hairColors if h.color in attr_vals]
-                    # print("filtered_haircolors ", filtered_haircolors)
-                    for c in filtered_haircolors:
-                        if c.confidence == 1.0:
-                            dlatent = self.savedAttrs[i]['facesAttr']
-                            dlatent_added.append(dlatent)
-                    if len(dlatent_added) == 0:
-                        for c in filtered_haircolors:
-                            if c.confidence >= 0.9:
-                                dlatent = self.savedAttrs[i]['facesAttr']
-                                dlatent_added.append(dlatent)
+        searchTxt = params.text
+        #Get ordered direction list
+        dir_list_ordered = self.getDirListfromSearchTxt(searchTxt)
 
-        print("Found %d matching results" % len(dlatent_added))
-        start_idx = np.random.randint(0, len(dlatent_added))
-        print(start_idx)
-        mini_batch_size = 1
-        w_src = self.savedAttrs[start_idx]['wlatent']
-        images = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-        resImg = PIL.Image.fromarray(images[0], 'RGB')
-        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        resImg.save("resImg.jpg")
+        # np.random.seed(10)
+        z = np.random.randn(1, *self.Gs.input_shape[1:])
+        w_src = self.Gs.components.mapping.run(z, None)
+        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+        w_src_orig = w_src.copy()
+        for j,attr in enumerate(dir_list_ordered):
+            direction = self.all_directions[attr['name']]
+            coeff = attr['coeff']
+            resImg, w_src = self.moveLatent_clipped(w_src, direction, coeff)
+        # resImg.save("g_img.jpg")
+        self.w_src_curr = w_src
+        self.w_src = w_src
         self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
+
+    def getDirListfromSearchTxt(self, txt):
+        dir_mapping = [
+            EasyDict({"name": "gender", 
+                        "mapping": "gender",
+                        "condition": [],
+                        "coeff_mapping":[{"male": 13.5, "female": -4.5}]
+                    }), 
+            EasyDict({"name": "race_black", 
+                        "mapping": "race", 
+                        "condition": ["black", "white"], 
+                        "coeff_mapping": [{"black": 4.5, "white": -2.5}]
+                    }),
+            EasyDict({"name": "age", 
+                        "mapping": "age", 
+                        "condition": [], 
+                        "coeff_mapping": [{"young": 5.5, "old": -7.5}]
+                    })
+        ]
+
+        searchTxt = txt.lower()
+        attr_dict = self.getAttributesFromSearchtxt(searchTxt)
+        dir_list = []
+        for i,k in enumerate(attr_dict.keys()):
+            dir_dict = {}
+            foundMapping = False
+            v = attr_dict[k]
+            for dm in dir_mapping:
+                if dm.mapping == k:
+                    dir_dict['name'] = dm.name
+                    dir_coeff_mapping = dm.coeff_mapping[0]
+                    for coeff_k in dir_coeff_mapping.keys():
+                        if v == coeff_k:
+                            dir_dict['coeff'] = dir_coeff_mapping[coeff_k]
+                    foundMapping = True
+            if foundMapping:
+                dir_dict['order'] = i
+                dir_list.append(dir_dict)
+        print(dir_list)
+        return dir_list
     
+    def getAttributesFromSearchtxt(self, searchTxt):
+        searchTxtList = searchTxt.split()
+        searchforAttr = [EasyDict({"name": "gender", "syns": ["gender", "sex"], "values": [["male", "boy",  "man"], ["female", "girl","woman"]]}),
+                         EasyDict({"name": "race", "syns": ["race", "skin"], "values": [["white"], ["black"], ["brown"], ["yellow"]]}),
+                         EasyDict({"name": "age", "syns": ["age"], "values": [["old", "older"], ["young", "younger"]]})]
+        matchingAttrs = []
+        matchingAttrsNames = []
+        matchingAttrsVals = []
+        for a in searchforAttr:
+            matchedSyns = [s for s in a.syns if s in searchTxtList]
+            for vl in a.values:
+                matchedSyns = matchedSyns + [s for s in vl if s in searchTxtList]
+            if len(matchedSyns) > 0:
+                matchingAttrs.append(a)
+                matchingAttrsNames.append(a.name)
+        for ma in matchingAttrs:
+            for vl in ma.values:
+                if any(x in searchTxtList for x in vl):
+                    matchingAttrsVals = matchingAttrsVals + [vl[0]]
+        attr_dict = {}
+        for key, val in zip(matchingAttrsNames, matchingAttrsVals):
+            attr_dict[key] = val
+        attr_dict = EasyDict(attr_dict)
+        return attr_dict
+
     def loadAllDirections(self):
         for a in self.attr_list:
             selectAttr = a+'.npy'
             direction = np.load('latent_directions/' + selectAttr)
             self.all_directions[a] = direction
 
+    #Testing
     def getSearchImage(self):
         mini_bs = 1
         w_src_all = []
         
-        dir_list = [{'name': 'smile', 'coeff': -2.5, 'order': 0},]
-                    # {'name': 'smile', 'coeff': -1.0, 'order': 1},
-                    # {'name': 'smile', 'coeff': -2.5, 'order': 2},]
-                    # {'name': 'gender', 'coeff': 7.5, 'order': 1},]
-                    # {'name': 'race_black', 'coeff': 0.0, 'order': 0},
-                    # {'name': 'age', 'coeff': 5.5, 'order': 3}]
+        dir_list = [{'name': 'smile', 'coeff': -5.5, 'order': 1},
+                    {'name': 'gender', 'coeff': 16.5, 'order': 0},
+                    {'name': 'race_black', 'coeff': 3.0, 'order': 2},
+                    {'name': 'age', 'coeff': -5.5, 'order': 3}]
         dir_list_ordered = sorted(dir_list, key=lambda k: k['order'])
         # print(dir_list_ordered)
         
         fig = plt.figure(figsize=(6, 4))
         
-        np.random.seed(0)
+        np.random.seed(10)
         for i in range(mini_bs):
             z = np.random.randn(1, *self.Gs.input_shape[1:])
             w_src = self.Gs.components.mapping.run(z, None)
@@ -249,31 +295,11 @@ class StyleGanEncoding():
             for j,attr in enumerate(dir_list_ordered):
                 direction = self.all_directions[attr['name']]
                 coeff = attr['coeff']
-                # print(w_src[0].shape)
-                mean1 = np.mean(w_src[0], axis=0)
-                # print(mean1[0:4])
-                w_src[0][0:8] = (w_src[0] + coeff*direction)[0:8]
-                mean2 = np.mean(w_src[0], axis=0)
-                # print("A ", mean2[0:4])
-                w_diff = np.subtract(mean2, mean1)
-                ix = np.where(w_diff<-0.02)
-                print(ix)
-                for idx in ix:
-                    # print(w_src[0][0:8][0].shape)
-                    for l in range(8):
-                        # print("layer ", l, w_src[0][0:8][l][idx], w_src_orig[0][0:8][l][idx])
-                        w_src[0][0:18][l][idx] = w_src_orig[0][0:8][0][idx]
-                mean2 = np.mean(w_src[0], axis=0)
-                w_diff_2 = np.subtract(mean2, mean1)
-                y = np.arange(512)
-                ax1 = fig.add_subplot(2,1,1)
-                ax1.plot(y, w_diff, 'r')
-                ax2 = fig.add_subplot(2,1,2)
-                ax2.plot(y, w_diff_2, 'b')
+                w_src = self.moveLatent_clipped(w_src, direction, coeff)
 
             w_src_all.append(w_src)
         
-        plt.savefig('resPlot.jpg')
+        # plt.savefig('resPlot.jpg')
         w_src_all = np.stack(w_src_all, axis=1)
         self.Gs_kwargs.minibatch_size = mini_bs
         images = self.Gs.components.synthesis.run(w_src_all[0], **self.Gs_kwargs)
@@ -283,8 +309,8 @@ class StyleGanEncoding():
             resImg = PIL.Image.fromarray(img, 'RGB')
             resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
             canvas.paste(resImg, (512*i,0))
-        # canvas.save("g_img.jpg")
-            self.broadcastImg(img)
+        canvas.save("g_img.jpg")
+            # self.broadcastImg(img)
 
     def testRandomSavedAttribute(self):
         start_idx = np.random.randint(0, len(self.savedAttrs)-1)
@@ -295,19 +321,6 @@ class StyleGanEncoding():
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
-
-    def getAttributesFromSearchtxt(self, searchTxt):
-        searchfor = ["hair", "haircolor"]
-        matchingAttr = [s for s in searchfor if s in searchTxt]
-        # print(matchingAttr)
-        if "hair" in matchingAttr:
-            searchfor = ["black", "brown", "blond", "red"]
-            matchingAttrVal = [s for s in searchfor if s in searchTxt]
-            # print(matchingAttr, matchingAttrVal)
-        attr_dict = EasyDict({})
-        for key, val in zip(matchingAttr, matchingAttrVal):
-            attr_dict[key] = val
-        return attr_dict
 
     #Testing
     def loadFaceAttributes(self):
@@ -372,8 +385,7 @@ class StyleGanEncoding():
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         # resImg.save(filename)
-        self.broadcastImg(resImg, imgSize=self.img_size)
-        return w_curr
+        return resImg, w_curr
 
     def clipW(self, w_orig, w_curr, clippedTop=False, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, hasAttrChanged=False):
         fig = plt.figure(figsize=(6, 4))
@@ -420,7 +432,7 @@ class StyleGanEncoding():
         return w_curr
 
     def getPossibleClippedIdxs(self, w_diff):
-        clipLimit = 0.3
+        clipLimit = 0.5
         topIx = []
         botIx = []
         topIx = np.where(w_diff>clipLimit)[0]
@@ -433,7 +445,7 @@ class StyleGanEncoding():
             topIx = np.where(w_diff>clipLimit)[0]
             botIx = np.where(w_diff<-clipLimit)[0]
             ix = np.concatenate((topIx, botIx), axis=0)
-        print("ix len %d, clip limit %f"% (ix.shape[0], clipLimit))
+        # print("ix len %d, clip limit %f"% (ix.shape[0], clipLimit))
         return ix
 
     def getFreezeIdxs(self):
@@ -494,13 +506,16 @@ if __name__ == "__main__":
     # sge.loadFaceAttributes()
     sge.makeModels()
     # sge.loadAttributeLabelMapping()
-    # sge.loadAllDirections()
+    sge.loadAllDirections()
     # sge.getSearchImage()
 
+    sge.sendSearchedImages(EasyDict({"text": "a older white man"}))
+    # sge.getDirListfromSearchTxt("a young black girl")
+    # sge.getDirListfromSearchTxt("a older white man")
     
-    params = EasyDict({'name': 'gender', 'coeff': '-5.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
-    sge.changeCoeff_clipped(params)
-    params = EasyDict({'name': 'smile', 'coeff': '4.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
-    sge.changeCoeff_clipped(params)
-    params = EasyDict({'name': 'race_black', 'coeff': '-8', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.3})
-    sge.changeCoeff_clipped(params)
+    # params = EasyDict({'name': 'gender', 'coeff': '-5.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
+    # sge.changeCoeff_clipped(params)
+    # params = EasyDict({'name': 'smile', 'coeff': '4.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
+    # sge.changeCoeff_clipped(params)
+    # params = EasyDict({'name': 'race_black', 'coeff': '-8', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.3})
+    # sge.changeCoeff_clipped(params)

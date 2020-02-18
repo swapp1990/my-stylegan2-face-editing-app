@@ -1,5 +1,8 @@
 <template>
 <div>
+    <div class="title">
+        <logo-heading></logo-heading>
+    </div>
     <div class="front">
         <div class="sidemenu left">
 
@@ -7,9 +10,9 @@
         <div class="container">
             <header>
                 <nav>
-                    <button type="button" class="menuBtn" @click="getAttributes"><i class='fas fa-link icon'></i></button>
+                    <!-- <button type="button" class="menuBtn" @click="getAttributes"><i class='fas fa-link icon'></i></button> -->
                     <button type="button" class="menuBtn" @click="saveLatent"><i class='fas fa-save icon'></i></button>
-                    <search-expand text="hair is black" @onEnter="searchEnter"></search-expand>
+                    <search-expand @onEnter="searchEnter"></search-expand>
                     <button type="button"  class="menuBtn" @click="randomize"><i class='fas fa-random icon'></i></button>
                 </nav>
             </header>
@@ -21,12 +24,15 @@
             <div class="wrapper">
                 <div class="item1">
                     <nav>
-                        <button @click="reset" class='attrTab'><i class='fas fa-sync icon'></i></button>
+                        <button @click="reset" class='attrTabBtn'><i class='fas fa-sync icon'></i></button>
                         <button v-for="attrTab in attributeTabs" type="button" v-bind:class="getTabClass(attrTab)"  @click="selectTab(attrTab)"><i class='fas' v-bind:class="attrTab.icon"></i></button>
                     </nav>
                 </div>
                 <div class="item2">
                     <nav>
+                        <div class="attrTabTitle">
+                            <span>{{selectedAttrTab}}</span>
+                        </div>
                         <div v-for="attr in filteredAttr">
                             <div class="d-flex flex-row">
                                 <div class="p-3">
@@ -65,10 +71,12 @@ import rippleCounter from '@/components/RippleCounter.vue';
 import radialBtn from '@/components/RadialButton.vue';
 import searchExpand from '@/components/FancySearch.vue';
 import fractalGrid from '@/components/FractalGrid.vue';
+import logoHeading from '@/components/LogoHeading.vue';
 
     export default {
         name: "neuMenu",
         components: {
+            logoHeading: logoHeading,
             rippleBtn: rippleBtn,
             rippleCounter: rippleCounter,
             radialBtn: radialBtn,
@@ -326,7 +334,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 this.searchImg()
             },
             searchImg() {
-                this.sendEditAction("sendSearchedImages", {"searchTxt": this.searchTxt});
+                this.sendEditAction("sendSearchedImages", {"text": this.searchTxt});
             },
             sendEditAction(actionName, params) {
                 let msg = {};
@@ -341,6 +349,12 @@ import fractalGrid from '@/components/FractalGrid.vue';
 </script>
 
 <style scoped lang="scss">
+.title {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
 .front {
     display: flex;
     flex-direction: row;
@@ -437,7 +451,7 @@ $shadow2: $shadow-tl2 $white, $shadow-br2 $dark;
     width: 240px;
     border-radius: $radius;
     box-shadow: $shadow;
-    padding: 20px 20px 20px 0px;
+    padding: 10px 20px 20px 0px;
     // margin: auto;
     .left {
         margin-right: 0;
@@ -474,6 +488,12 @@ $shadow2: $shadow-tl2 $white, $shadow-br2 $dark;
                         width: 30px;
                         height: 70px;
                     }
+                    .attrTabBtn {
+                        @extend %button2;
+                        background: #f5f6f7;
+                        width: 30px;
+                        height: 40px;
+                    }
                 }
             }
             .item2 {
@@ -489,6 +509,14 @@ $shadow2: $shadow-tl2 $white, $shadow-br2 $dark;
                     @extend %button;
                     width: 30px;
                     z-index: 2;
+                }
+                .attrTabTitle {
+                    display: flex;
+                    justify-content: center;
+                    font-family: "Paytone One";
+                    color: #202020;
+                    text-transform: uppercase;
+                    font-weight: 600;
                 }
             }
     }
