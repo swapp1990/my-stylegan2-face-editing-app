@@ -10,6 +10,7 @@ import pickle
 import gzip
 import time
 from server.threads import Worker as workerCls
+from app.search import search
 from easydict import EasyDict
 import faceMicrosoft as faceMicro
 
@@ -142,7 +143,6 @@ class StyleGanEncoding():
     def getAttributes(self, params=None):
         print('getAttributes')
         self.currAttrDictToSave = faceMicro.callApi(self.w_src_curr)
-        print(self.currAttrDictToSave['facesAttr'])
         msg = {'action': 'sendAttr', 'attr': self.currAttrDictToSave['facesAttr']}
         self.broadcast(msg)
 
@@ -181,11 +181,17 @@ class StyleGanEncoding():
         pkl_file = open('results/savedAttr.pkl', 'rb')
         self.savedAttrs = pickle.load(pkl_file)
         print("loaded attributes mapping ", len(self.savedAttrs))
-    
+
+    def loadAllDirections(self):
+        for a in self.attr_list:
+            selectAttr = a+'.npy'
+            direction = np.load('latent_directions/' + selectAttr)
+            self.all_directions[a] = direction
+        
     def sendSearchedImages(self, params=None):
         searchTxt = params.text
         #Get ordered direction list
-        dir_list_ordered = self.getDirListfromSearchTxt(searchTxt)
+        dir_list_ordered = search.getDirListfromSearchTxt(searchTxt)
 
         # np.random.seed(10)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
@@ -196,81 +202,10 @@ class StyleGanEncoding():
             direction = self.all_directions[attr['name']]
             coeff = attr['coeff']
             resImg, w_src = self.moveLatent_clipped(w_src, direction, coeff)
-        # resImg.save("g_img.jpg")
+        resImg.save("g_img.jpg")
         self.w_src_curr = w_src
         self.w_src = w_src
         self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
-
-    def getDirListfromSearchTxt(self, txt):
-        dir_mapping = [
-            EasyDict({"name": "gender", 
-                        "mapping": "gender",
-                        "condition": [],
-                        "coeff_mapping":[{"male": 13.5, "female": -4.5}]
-                    }), 
-            EasyDict({"name": "race_black", 
-                        "mapping": "race", 
-                        "condition": ["black", "white"], 
-                        "coeff_mapping": [{"black": 4.5, "white": -2.5}]
-                    }),
-            EasyDict({"name": "age", 
-                        "mapping": "age", 
-                        "condition": [], 
-                        "coeff_mapping": [{"young": 5.5, "old": -7.5}]
-                    })
-        ]
-
-        searchTxt = txt.lower()
-        attr_dict = self.getAttributesFromSearchtxt(searchTxt)
-        dir_list = []
-        for i,k in enumerate(attr_dict.keys()):
-            dir_dict = {}
-            foundMapping = False
-            v = attr_dict[k]
-            for dm in dir_mapping:
-                if dm.mapping == k:
-                    dir_dict['name'] = dm.name
-                    dir_coeff_mapping = dm.coeff_mapping[0]
-                    for coeff_k in dir_coeff_mapping.keys():
-                        if v == coeff_k:
-                            dir_dict['coeff'] = dir_coeff_mapping[coeff_k]
-                    foundMapping = True
-            if foundMapping:
-                dir_dict['order'] = i
-                dir_list.append(dir_dict)
-        print(dir_list)
-        return dir_list
-    
-    def getAttributesFromSearchtxt(self, searchTxt):
-        searchTxtList = searchTxt.split()
-        searchforAttr = [EasyDict({"name": "gender", "syns": ["gender", "sex"], "values": [["male", "boy",  "man"], ["female", "girl","woman"]]}),
-                         EasyDict({"name": "race", "syns": ["race", "skin"], "values": [["white"], ["black"], ["brown"], ["yellow"]]}),
-                         EasyDict({"name": "age", "syns": ["age"], "values": [["old", "older"], ["young", "younger"]]})]
-        matchingAttrs = []
-        matchingAttrsNames = []
-        matchingAttrsVals = []
-        for a in searchforAttr:
-            matchedSyns = [s for s in a.syns if s in searchTxtList]
-            for vl in a.values:
-                matchedSyns = matchedSyns + [s for s in vl if s in searchTxtList]
-            if len(matchedSyns) > 0:
-                matchingAttrs.append(a)
-                matchingAttrsNames.append(a.name)
-        for ma in matchingAttrs:
-            for vl in ma.values:
-                if any(x in searchTxtList for x in vl):
-                    matchingAttrsVals = matchingAttrsVals + [vl[0]]
-        attr_dict = {}
-        for key, val in zip(matchingAttrsNames, matchingAttrsVals):
-            attr_dict[key] = val
-        attr_dict = EasyDict(attr_dict)
-        return attr_dict
-
-    def loadAllDirections(self):
-        for a in self.attr_list:
-            selectAttr = a+'.npy'
-            direction = np.load('latent_directions/' + selectAttr)
-            self.all_directions[a] = direction
 
     #Testing
     def getSearchImage(self):
@@ -315,7 +250,7 @@ class StyleGanEncoding():
     def testRandomSavedAttribute(self):
         start_idx = np.random.randint(0, len(self.savedAttrs)-1)
         # print(start_idx)
-        print(self.savedAttrs[start_idx]['facesAttr'])
+        # print(self.savedAttrs[start_idx]['facesAttr'])
         w_src = self.savedAttrs[start_idx]['wlatent']
         images = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
         resImg = PIL.Image.fromarray(images[0], 'RGB')
@@ -461,7 +396,7 @@ class StyleGanEncoding():
                 allFreezeIdx = allFreezeIdx + currFreezeIdx
         if not found:
             self.freezeIdxs.append({'name': attrName, 'freeze': []})
-        print(len(currFreezeIdx), len(allFreezeIdx))
+        # print(len(currFreezeIdx), len(allFreezeIdx))
         return currFreezeIdx, allFreezeIdx
 
     def setFreezeIdxs(self, idxs):
@@ -509,7 +444,7 @@ if __name__ == "__main__":
     sge.loadAllDirections()
     # sge.getSearchImage()
 
-    sge.sendSearchedImages(EasyDict({"text": "a older white man"}))
+    sge.sendSearchedImages(EasyDict({"text": "a older smiling black girl"}))
     # sge.getDirListfromSearchTxt("a young black girl")
     # sge.getDirListfromSearchTxt("a older white man")
     
