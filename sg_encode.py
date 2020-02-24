@@ -48,6 +48,9 @@ class StyleGanEncoding():
         self.img_size = 512
         self.fixedLayerRanges = [0,8]
 
+        #Style mixing
+        self.stylemix_dlatents = []
+
         self.call_func_names = {
             'initApp': self.makeModels,
             'randomize': self.generateRandomSrcImg,
@@ -57,7 +60,8 @@ class StyleGanEncoding():
             'clear': self.clear,
             'sendSearchedImages': self.sendSearchedImages,
             'getAttributes': self.getAttributes,
-            'saveLatent': self.saveLatent
+            'saveLatent': self.saveLatent,
+            'mixStyleImg': self.sendStyleMixedImg
         }
 
         savedDicts = []
@@ -78,7 +82,7 @@ class StyleGanEncoding():
         self.loadAllDirections()
 
         # Generate random latent
-        np.random.seed(10)
+        # np.random.seed(10)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
@@ -88,7 +92,7 @@ class StyleGanEncoding():
 
         #send gallery
         # self.sendSavedGallery()
-    
+        self.sendStylemixGalleryImages()
     def generateRandomSrcImg(self, params=None):
         print("generateRandomSrcImg ", params)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
@@ -178,6 +182,22 @@ class StyleGanEncoding():
             resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
             self.broadcastImg(resImg, imgSize=self.img_size, tag="gallery"+str(i))
 
+    def sendStylemixGalleryImages(self):
+        print("sendStylemixGalleryImages")
+        for i in range(4):
+            z = np.random.randn(1, *self.Gs.input_shape[1:])
+            w_src = self.Gs.components.mapping.run(z, None)
+            w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+            w_src = np.squeeze(w_src)
+            self.stylemix_dlatents.append(w_src)
+        dlatents = np.array(self.stylemix_dlatents)
+        print(dlatents.shape)
+        images = self.Gs.components.synthesis.run(dlatents, **self.Gs_kwargs)
+        for j in range(images.shape[0]):
+            img = images[j]
+            resImg = PIL.Image.fromarray(img, 'RGB')
+            resImg = resImg.resize((128,128),PIL.Image.LANCZOS)
+            self.broadcastImg(resImg, imgSize=128, tag="styleMixGallery"+str(j))
     ############################## Client Search Actions #####################################
     def loadAttributeLabelMapping(self):
         pkl_file = open('results/savedAttr.pkl', 'rb')
@@ -308,6 +328,22 @@ class StyleGanEncoding():
     def styleMixing(self, params):
         self.doStyleMixing(si=int(params.si), ei=int(params.ei))
 
+    def sendStyleMixedImg(self, params):
+        print("sendStyleMixedImg ", params)
+        selectedStyle = np.array(self.stylemix_dlatents[int(params.styleImgIdx)])
+        sl = 6
+        el = 8
+        si=0
+        ei=512
+        print(selectedStyle.shape, self.w_src_curr.shape)
+        for idx in range(si, ei):
+            for l in range(sl,el):
+                self.w_src_curr[0][l][idx] = selectedStyle[l][idx]
+        self.w_src = self.w_src_curr
+        images = self.Gs.components.synthesis.run(self.w_src_curr, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        self.broadcastImg(resImg, imgSize=self.img_size)
     #Testing
     def doStyleMixing(self, si=0, ei=512):
         print(si, ei)
