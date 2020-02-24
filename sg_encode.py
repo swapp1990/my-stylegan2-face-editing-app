@@ -9,6 +9,8 @@ import mpld3
 import pickle
 import gzip
 import time
+# import moviepy.editor as mpy
+
 from server.threads import Worker as workerCls
 from app.search import search
 from easydict import EasyDict
@@ -207,6 +209,20 @@ class StyleGanEncoding():
         self.w_src = w_src
         self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
 
+    def getImageByText(self, text=""):
+        dir_list_ordered = search.getDirListfromSearchTxt(text)
+        z = np.random.randn(1, *self.Gs.input_shape[1:])
+        w_src = self.Gs.components.mapping.run(z, None)
+        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+        path = "results/mix/"
+        for j,attr in enumerate(dir_list_ordered):
+            self.selected_attr = attr['name']+'.npy'
+            direction = self.all_directions[attr['name']]
+            coeff = attr['coeff']
+            filename = path+ attr['name'] + str(j) + ".jpg"
+            resImg, w_src = self.moveLatent_clipped(w_src, direction, coeff, filename=filename)
+            # print(attr['name'], self.freezeIdxs)
+        return resImg, w_src
     #Testing
     def getSearchImage(self):
         mini_bs = 1
@@ -288,6 +304,53 @@ class StyleGanEncoding():
         # resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         resImg.save("resImg.jpg") 
 
+    ############################# Style Mixing ###############################################
+    def styleMixing(self, params):
+        self.doStyleMixing(si=int(params.si), ei=int(params.ei))
+
+    #Testing
+    def doStyleMixing(self, si=0, ei=512):
+        print(si, ei)
+        sl = 0
+        el = 18
+        path = "results/mix/"
+        img, w_src_1 = self.getImageByText("black man")
+        img.save(path+"img1.jpg")
+        img, w_src_2 = self.getImageByText("white woman")
+        img.save(path+"img2.jpg")
+        
+        #Test linear interpolation
+        # dlatents = np.array([(1 - i) * w_src_1[0] + i * w_src_2[0] for i in np.linspace(0, 1, 50)])
+        # print("dlatents ", dlatents.shape)
+        # images = self.Gs.components.synthesis.run(dlatents, **self.Gs_kwargs)
+        # print("images ", images.shape)
+        # clip = mpy.VideoClip(images, duration=15.0)
+        # clip.write_gif('ani.gif', fps=15)
+
+        w_src_1c = w_src_1.copy()
+        w_src_2c = w_src_2.copy()
+        for idx in range(si, ei):
+            for l in range(sl,el):
+                w_src_1c[0][l][idx] = w_src_2c[0][l][idx]
+
+        images = self.Gs.components.synthesis.run(w_src_1c, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        resImg.save(path+"img4.jpg")
+
+        #Plot the differences of mean for axis 1 (18,512) => (512)
+        # fig = plt.figure(figsize=(6, 4))
+        # y = np.arange(18)
+        # mean1 = np.mean(w_src_1c[0], axis=1)
+        # # print(w_src_1[0].shape, mean1.shape)
+        # mean2 = np.mean(w_src_2c[0], axis=1)
+        # # print(mean1, mean2)
+        # w_diff = np.subtract(mean2, mean1)
+        # #Plot the clipped differences
+        # axes = fig.add_subplot(1,1,1)
+        # axes.plot(y, w_diff, 'r')
+        # plt.savefig('results/resPlot_mix.jpg')
+
 ###############################################################################################
     def setNewAttr(self, attrName):
         self.selected_attr = attrName+'.npy'
@@ -314,6 +377,11 @@ class StyleGanEncoding():
         
         #Apply latent direction using the coeff value to the original w
         w_curr[0][0:18] = (latent_vector[0] + coeff*direction)[0:18]
+        # images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
+        # resImg = PIL.Image.fromarray(images[0], 'RGB')
+        # resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        # resImg.save(filename)
+
         w_curr = self.clipW(w_orig, w_curr, clippedTop, clippedBottom, clipLimit, hasAttrChanged=hasAttrChanged)
         
         images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
@@ -322,20 +390,30 @@ class StyleGanEncoding():
         # resImg.save(filename)
         return resImg, w_curr
 
+############################## Freezing & Clipping ##############################################
     def clipW(self, w_orig, w_curr, clippedTop=False, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, hasAttrChanged=False):
-        fig = plt.figure(figsize=(6, 4))
+        fig = plt.figure(figsize=(12, 8))
         y = np.arange(512)
         #Plot two graphs, original diff and after clipped diff
-        
+
         mean1 = np.mean(w_orig[0], axis=0)
         mean2 = np.mean(w_curr[0], axis=0)
+
+        #Plot means for orig & curr (should be diff) 
+        # axes = fig.add_subplot(4,1,1)
+        # axes.plot(y, mean1, 'r')
+        # axes = fig.add_subplot(4,1,2)
+        # axes.plot(y, mean2, 'r')
+
         w_diff = np.subtract(mean2, mean1)
+
         #Plot the original difference after latent direction is applied to w
-        axes = fig.add_subplot(2,1,1)
-        axes.plot(y, w_diff, 'r')
+        # axes = fig.add_subplot(4,1,3)
+        # axes.plot(y, w_diff, 'r')
 
         #Clip top differences from the modified w
         pos_ix = self.getPossibleClippedIdxs(w_diff)
+        # print(self.selected_attr, pos_ix)
         n_layers = 18
         curr_freeze, all_freeze = self.getFreezeIdxs()
         # if not hasAttrChanged:
@@ -352,18 +430,17 @@ class StyleGanEncoding():
                 for l in range(n_layers):
                     w_curr[0][l][idx] = w_orig[0][l][idx]
         self.setFreezeIdxs(curr_freeze)
-        # print("overlapping_idxs ", overlapping_idxs)
-        # print("curr_freeze ", curr_freeze)
+
         #         #Set the value for found indexes to be the original value, not the ones modified by the direction vector
         #         # w_curr[0][l][idxInW] = w_orig[0][l][idxInW]
         #         # w_curr[0][l][idxInW] += clipExtend
 
-        mean2 = np.mean(w_curr[0], axis=0)
-        w_diff = np.subtract(mean2, mean1)
-        #Plot the clipped differences
-        axes = fig.add_subplot(2,1,2)
-        axes.plot(y, w_diff, 'r')
-        plt.savefig('results/resPlot.jpg')
+        # mean2 = np.mean(w_curr[0], axis=0)
+        # w_diff = np.subtract(mean2, mean1)
+        # #Plot the clipped differences
+        # axes = fig.add_subplot(4,1,4)
+        # axes.plot(y, w_diff, 'r')
+        # plt.savefig('results/resPlot.jpg')
         return w_curr
 
     def getPossibleClippedIdxs(self, w_diff):
@@ -444,9 +521,12 @@ if __name__ == "__main__":
     sge.loadAllDirections()
     # sge.getSearchImage()
 
-    sge.sendSearchedImages(EasyDict({"text": "a older smiling black girl"}))
+    # sge.sendSearchedImages(EasyDict({"text": "a older smiling black girl"}))
     # sge.getDirListfromSearchTxt("a young black girl")
     # sge.getDirListfromSearchTxt("a older white man")
+
+    sge.doStyleMixing()
+    # sge.getImageByText("older smiling black man")
     
     # params = EasyDict({'name': 'gender', 'coeff': '-5.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
     # sge.changeCoeff_clipped(params)
