@@ -98,7 +98,7 @@ import logoHeading from '@/components/LogoHeading.vue';
                 logs: [],
                 training: true,
                 myText: "hello",
-                username: "",
+                username: "l",
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna'},
@@ -253,8 +253,19 @@ import logoHeading from '@/components/LogoHeading.vue';
                         this.handleReceivedImg(content);
                     } else if(content.action == "sendAttr") {
                         this.handleReceivedAttr(content);
-                    } else if(content.action == "sendGalleryReset") {
-                        this.galleryImgs = [];
+                    } else if(content.action == "sendGallery") {
+                        if(content.tag.includes("gallery")) {
+                            this.galleryImgs = [];
+                            content.gallery.forEach(gi => {
+                                let galleryImg = {};
+                                galleryImg.galleryIdx = gi.id;
+                                gi.mp_fig.axes.forEach(a => {
+                                    var base64Data = a.images[0].data;
+                                    galleryImg.png = base64Data;
+                                });
+                                this.galleryImgs.push(galleryImg);
+                            });
+                        }
                     }
                 }
             },

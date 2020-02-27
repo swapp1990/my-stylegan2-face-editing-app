@@ -5,10 +5,14 @@ import dnnlib
 import dnnlib.tflib as tflib
 import pretrained_networks
 import os
+import json
 import mpld3
 import pickle
 import gzip
 import time
+import base64
+from io import BytesIO
+
 from server.threads import Worker as workerCls
 from app.search import search
 from easydict import EasyDict
@@ -36,8 +40,11 @@ class SGEThread():
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff_clipped,
             'clear': self.clear,
+            'sendSearchedImages': self.generateSearchedImgs,
+            'saveLatent': self.saveLatent,
             'send_wSrc': self.got_wSrc,
-            'send_GImgs': self.got_GImgs
+            'send_GImgs': self.got_GImgs,
+            'send_Img_W': self.got_Img_W
         }
         
         self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
@@ -47,6 +54,7 @@ class SGEThread():
         print("Thread generateRandomSrcImg ", params)
         outParams = EasyDict({})
         self.broadcastToMainThread("runRandomMapping", outParams)
+        self.sendSavedGallery()
     
     def got_wSrc(self, params=None):
         print("Thread got_wSrc ", params.keys())
@@ -57,6 +65,19 @@ class SGEThread():
     
     def got_GImgs(self, params=None):
         print("Thread got_GImgs ", params.keys())
+        g_images = params.G_imgs
+        if "tag" in params.keys():
+            if params.tag == "gallery":
+                self.sendGalleryToClient(g_images)
+        else:
+            resImg = PIL.Image.fromarray(g_images[0], 'RGB')
+            resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+            self.broadcastImgToClient(resImg, imgSize=self.img_size)
+    
+    def got_Img_W(self, params=None):
+        print("Thread got_GImgs ", params.keys())
+        self.w_src = params.w_src
+        self.w_src_curr = params.w_src
         g_images = params.G_imgs
         resImg = PIL.Image.fromarray(g_images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
@@ -88,22 +109,39 @@ class SGEThread():
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
         self.freezeIdxs = []
     
+    def generateSearchedImgs(self, params=None):
+        searchTxt = params.text
+        #Get ordered direction list
+        dir_list_ordered = search.getDirListfromSearchTxt(searchTxt)
+        outParams = EasyDict({})
+        outParams.dir_list_ordered = dir_list_ordered
+        self.broadcastToMainThread("generateSearchedImgs", outParams)
+
+    def saveLatent(self, params=None):
+        print('saveLatent')
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+        
+        self.currAttrDictToSave = {'wlatent': self.w_src_curr}
+        savedAttrs.append(self.currAttrDictToSave)
+        output = open('results/savedAttrFromClient.pkl', 'wb')
+        pickle.dump(savedAttrs,output)
+        output.close()
+
+        time.sleep(0.5)
+        self.sendSavedGallery()
     ############################## Clipping W ###################################
-    def moveLatent_clipped(self,latent_vector, direction,coeff, clippedTop=True, clippedBottom=False, clipLimit=0.2, clipExtend=0.15,filename="results/resImg.jpg", hasAttrChanged=False):
+    def moveLatent_clipped(self,latent_vector, direction,coeff, hasAttrChanged=False):
         w_curr = latent_vector.copy()
         w_orig = latent_vector.copy()
         
         #Apply latent direction using the coeff value to the original w
         w_curr[0][0:18] = (latent_vector[0] + coeff*direction)[0:18]
-        w_curr = self.clipW(w_orig, w_curr, clippedTop, clippedBottom, clipLimit, hasAttrChanged=hasAttrChanged)
-        
-        # images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
-        # resImg = PIL.Image.fromarray(images[0], 'RGB')
-        # resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        # # resImg.save(filename)
+        w_curr = self.clipW(w_orig, w_curr, hasAttrChanged=hasAttrChanged)
         return w_curr
 
-    def clipW(self, w_orig, w_curr, clippedTop=False, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, hasAttrChanged=False):
+    def clipW(self, w_orig, w_curr, hasAttrChanged=False):
         fig = plt.figure(figsize=(6, 4))
         y = np.arange(512)
         #Plot two graphs, original diff and after clipped diff
@@ -201,6 +239,41 @@ class SGEThread():
         self.selected_attr = attrName
         self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
 
+    def sendSavedGallery(self):
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+
+        w_srsc = []
+        for i in range(len(savedAttrs)):
+            w_srsc.append(savedAttrs[i]['wlatent'])
+        if len(w_srsc) > 0:
+            w_srsc = np.asarray(w_srsc)
+            w_srsc = np.squeeze(w_srsc, axis=1)
+            outParams = EasyDict({"w_src": w_srsc, "tag": "gallery"})
+            self.broadcastToMainThread("generateImgFromWSrc", outParams)
+
+    def sendGalleryToClient(self, images):
+        galleryImgs = []
+        for idx in range(images.shape[0]):
+            resImg = PIL.Image.fromarray(images[idx], 'RGB')
+            resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+            mp_fig = self.getImageFig(resImg)
+            galleryImgs.append({'id': idx, 'mp_fig': mp_fig})
+        payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': 'gallery'}
+        self.broadcastToClient(EasyDict(payload))
+
+    def getImageFig(self, img, imgSize=512):
+        my_dpi = 96
+        fig = plt.figure(figsize=(imgSize/my_dpi, imgSize/my_dpi), dpi=my_dpi)
+        ax1 = fig.add_subplot(1,1,1)
+        ax1.set_xticks([])
+        ax1.set_yticks([])
+        ax1.imshow(img, cmap='plasma')
+        mp_fig = mpld3.fig_to_dict(fig)
+        plt.close('all')
+        return mp_fig
+
     def broadcastImgToClient(self, img, imgSize=256, tag='type', filename='filename'):
         # img.save("results/clientImg.jpg")
         my_dpi = 96
@@ -216,8 +289,9 @@ class SGEThread():
         payload = {'action': 'sendImg', 'fig': mp_fig, 'tag': tag, 'filename': filename}
         self.broadcastToClient(EasyDict(payload))
     
-    def broadcastToClient(self, payload):
+    def broadcastToClient(self, payload, broadcastToAll=False):
         payload.id = self.threadId
+        payload.broadcastToAll = broadcastToAll
         workerCls.broadcast_event(payload)
     
     def broadcastToMainThread(self, action, params):
@@ -267,22 +341,10 @@ class StyleGanEncoding():
             'initApp': self.makeModels,
             'runRandomMapping': self.runRandomMapping,
             'generateImgFromWSrc': self.generateImgFromWSrc,
-            'generateRandomImg': self.generateRandomSrcImg,
-            'randomize': self.generateRandomSrcImg,
-            'changeCoeff': self.changeCoeff,
-            'changeCoeff_clipped': self.changeCoeff_clipped,
-            'changeFixedLayers': self.changeFixedLayers,
-            'clear': self.clear,
-            'sendSearchedImages': self.sendSearchedImages,
+            'generateSearchedImgs': self.generateSearchedImgs,
             'getAttributes': self.getAttributes,
-            'saveLatent': self.saveLatent
         }
-
-        savedDicts = []
-        output = open('results/savedAttrFromClient.pkl', 'wb')
-        pickle.dump(savedDicts,output)
-        output.close()
-
+        
     ############################## Client Edit Actions #####################################
     def makeModels(self, params=None):
         _G, _D, self.Gs = pretrained_networks.load_networks(network_pkl)
@@ -294,18 +356,7 @@ class StyleGanEncoding():
 
         self.loadAttributeLabelMapping()
         self.loadAllDirections()
-
-        # Generate random latent
-        
-        # z = np.random.randn(1, *self.Gs.input_shape[1:])
-        # self.w_src = self.Gs.components.mapping.run(z, None)
-        # self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
-        # self.w_src_orig = self.w_src
-        # self.w_src_curr = self.w_src
-        # self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
-
-        #send gallery
-        # self.sendSavedGallery()
+        self.resetSavedLatents()
     
     def runRandomMapping(self, params=None):
         print("runRandomMapping ", params)
@@ -318,20 +369,79 @@ class StyleGanEncoding():
     def generateImgFromWSrc(self, params=None):
         print("generateImgFromWSrc ", params.keys())
         w_src = params.w_src
-        G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-        msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs}}
+        if "tag" in params.keys():
+            if params.tag == "gallery":
+                G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+                msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs, 'tag': params.tag}}
+        else:
+            G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+            msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs}}
+       
         self.broadcastToThread(EasyDict(msg), params.clientSessId)
 
-    def generateRandomSrcImg(self, params=None):
-        print("generateRandomSrcImg ", params)
-        # np.random.seed(10)
+    def generateSearchedImgs(self, params=None):
+        print("generateSearchedImgs ", params.keys())
+        dir_list_ordered = params.dir_list_ordered
         z = np.random.randn(1, *self.Gs.input_shape[1:])
-        self.w_src = self.Gs.components.mapping.run(z, None)
-        self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
-        self.w_src_orig = self.w_src
-        self.w_src_curr = self.w_src
-        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+        w_src = self.Gs.components.mapping.run(z, None)
+        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+        w_src_orig = w_src.copy()
+        for j,attr in enumerate(dir_list_ordered):
+            direction = self.all_directions[attr['name']]
+            coeff = attr['coeff']
+            w_src = self.moveLatent_clipped(w_src, direction, coeff)
+        G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+        msg = {'action': 'send_Img_W', 'params': {'G_imgs': G_imgs, 'w_src': w_src}}
+        self.broadcastToThread(EasyDict(msg), params.clientSessId)
     
+    def moveLatent_clipped(self,latent_vector, direction,coeff, hasAttrChanged=False):
+        w_curr = latent_vector.copy()
+        w_orig = latent_vector.copy()
+        
+        #Apply latent direction using the coeff value to the original w
+        w_curr[0][0:18] = (latent_vector[0] + coeff*direction)[0:18]
+        w_curr = self.clipW(w_orig, w_curr)
+        return w_curr
+    
+    def clipW(self, w_orig, w_curr):
+        mean1 = np.mean(w_orig[0], axis=0)
+        mean2 = np.mean(w_curr[0], axis=0)
+        w_diff = np.subtract(mean2, mean1)
+
+        #Clip top differences from the modified w
+        pos_ix = self.getPossibleClippedIdxs(w_diff)
+        n_layers = 18
+        all_freeze = []
+        curr_freeze = []
+        overlapping_idxs = []
+        for idx in range(512):
+            if idx in pos_ix:
+                if idx not in all_freeze:
+                    curr_freeze.append(idx)
+                else:
+                    overlapping_idxs.append(idx)
+            if idx in all_freeze:
+                for l in range(n_layers):
+                    w_curr[0][l][idx] = w_orig[0][l][idx]
+        return w_curr
+    
+    def getPossibleClippedIdxs(self, w_diff):
+        clipLimit = 0.5
+        topIx = []
+        botIx = []
+        topIx = np.where(w_diff>clipLimit)[0]
+        botIx = np.where(w_diff<-clipLimit)[0]
+        ix = np.concatenate((topIx, botIx), axis=0)
+        while ix.shape[0] == 0 and clipLimit >0.06:
+            clipLimit -= 0.05
+            topIx = []
+            botIx = []
+            topIx = np.where(w_diff>clipLimit)[0]
+            botIx = np.where(w_diff<-clipLimit)[0]
+            ix = np.concatenate((topIx, botIx), axis=0)
+        # print("ix len %d, clip limit %f"% (ix.shape[0], clipLimit))
+        return ix
+
     def changeFixedLayers(self, params=None):
         print("changeFixedLayers ", params)
         self.fixedLayerRanges = params.fix_layer_ranges
@@ -342,36 +452,6 @@ class StyleGanEncoding():
         self.currAttrDictToSave = faceMicro.callApi(self.w_src_curr)
         msg = {'action': 'sendAttr', 'attr': self.currAttrDictToSave['facesAttr']}
         self.broadcast(msg)
-
-    def saveLatent(self, params=None):
-        print('saveLatent')
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-        print("savedAttrs len ", len(savedAttrs), type(savedAttrs))
-        
-        self.currAttrDictToSave = {'wlatent': self.w_src_curr}
-        savedAttrs.append(self.currAttrDictToSave)
-        output = open('results/savedAttrFromClient.pkl', 'wb')
-        pickle.dump(savedAttrs,output)
-        output.close()
-
-        time.sleep(0.5)
-        self.sendSavedGallery()
-
-    def sendSavedGallery(self):
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-        print("send savedAttrs len ", len(savedAttrs), type(savedAttrs))
-        msg = {'action': 'sendGalleryReset'}
-        self.broadcast(msg)
-        for i in range(len(savedAttrs)):
-            w_src = savedAttrs[i]['wlatent']
-            images = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-            resImg = PIL.Image.fromarray(images[0], 'RGB')
-            resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-            self.broadcastImg(resImg, imgSize=self.img_size, tag="gallery"+str(i))
 
     ############################## Client Search Actions #####################################
     def loadAttributeLabelMapping(self):
@@ -384,25 +464,6 @@ class StyleGanEncoding():
             selectAttr = a+'.npy'
             direction = np.load('latent_directions/' + selectAttr)
             self.all_directions[a] = direction
-        
-    def sendSearchedImages(self, params=None):
-        searchTxt = params.text
-        #Get ordered direction list
-        dir_list_ordered = search.getDirListfromSearchTxt(searchTxt)
-
-        # np.random.seed(10)
-        z = np.random.randn(1, *self.Gs.input_shape[1:])
-        w_src = self.Gs.components.mapping.run(z, None)
-        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
-        w_src_orig = w_src.copy()
-        for j,attr in enumerate(dir_list_ordered):
-            direction = self.all_directions[attr['name']]
-            coeff = attr['coeff']
-            resImg, w_src = self.moveLatent_clipped(w_src, direction, coeff)
-        resImg.save("g_img.jpg")
-        self.w_src_curr = w_src
-        self.w_src = w_src
-        self.broadcastImg(resImg, imgSize=self.img_size, tag="search")
 
     #Testing
     def getSearchImage(self):
@@ -486,40 +547,6 @@ class StyleGanEncoding():
         resImg.save("resImg.jpg") 
 
 ###############################################################################################
-    def setNewAttr(self, attrName):
-        self.selected_attr = attrName+'.npy'
-        self.direction = np.load('latent_directions/' + self.selected_attr)
-
-    def moveLatentAndGenerate(self, latent_vector, direction, coeff, hasAttrChanged=False):
-        coeff = -1 * coeff
-        new_latent_vector = latent_vector.copy()
-        # print(type(new_latent_vector), new_latent_vector.shape)
-        minLayerIdx = self.fixedLayerRanges[0]
-        maxLayerIdx = self.fixedLayerRanges[1]
-        new_latent_vector[0][minLayerIdx:maxLayerIdx] = (latent_vector[0] + coeff*direction)[minLayerIdx:maxLayerIdx]
-        if hasAttrChanged:
-            self.w_src = new_latent_vector
-        self.w_src_curr = new_latent_vector
-        images = self.Gs.components.synthesis.run(new_latent_vector, **self.Gs_kwargs)
-        resImg = PIL.Image.fromarray(images[0], 'RGB')
-        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        self.broadcastImg(resImg, imgSize=self.img_size)
-
-    def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
-        img.save("results/clientImg.jpg")
-        my_dpi = 96
-        # img_size = (256,256)
-        fig = plt.figure(figsize=(imgSize/my_dpi, imgSize/my_dpi), dpi=my_dpi)
-        ax1 = fig.add_subplot(1,1,1)
-        ax1.set_xticks([])
-        ax1.set_yticks([])
-        ax1.imshow(img, cmap='plasma')
-        # plt.show()
-        mp_fig = mpld3.fig_to_dict(fig)
-        plt.close('all')
-        msg = {'action': 'sendImg', 'fig': mp_fig, 'tag': tag, 'filename': filename}
-        self.broadcast(EasyDict(msg))
-    
     def broadcast(self, msg):
         msg.id = self.threadId
         workerCls.broadcast_event(msg)
@@ -531,13 +558,15 @@ class StyleGanEncoding():
     def sendTest(self):
         msg = {'action': 'testAction'}
         self.broadcast(msg)
+            
+    def resetSavedLatents(self):
+        savedDicts = []
+        output = open('results/savedAttrFromClient.pkl', 'wb')
+        pickle.dump(savedDicts,output)
+        output.close()
     ################### Thread Methods ###################################
     def doWork(self, payload):
         assert(isinstance(payload, EasyDict))
-        # if 'origId' in payload.keys():
-        #     self.threadId = payload.origId
-        # else:
-        #     self.threadId = payload.id
         self.call_func_names[payload.action](payload.params)
 
     ############### Main 

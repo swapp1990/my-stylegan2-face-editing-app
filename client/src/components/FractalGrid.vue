@@ -27,7 +27,6 @@
         },
         methods: {
             getImgData(i) {
-                // console.log("getImgData ", i);
                 let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
                 return base64Png;
             },

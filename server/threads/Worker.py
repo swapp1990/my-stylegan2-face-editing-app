@@ -46,6 +46,9 @@ class Worker(threading.Thread):
     #Emit 'General' payload to client with the given session id. Client handles based on the content of the payload
     def emitGeneral(self, payload):
         print('emitGeneral ', payload.keys())
+        if 'broadcastToAll' in payload.keys():
+            if payload.broadcastToAll:
+                self.socketio.emit('General', payload)
         self.socketio.emit('General', payload, room = payload.id)
 
     def stop(self):
