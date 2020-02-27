@@ -67,7 +67,6 @@ def connect():
         stylegan_encode = sg_encode.StyleGanEncoding()
         threadG = workerCls.Worker(0, stylegan_encode, socketio=socketio)
         threadG.start()
-        print('makemodel')
         msg = {'id': 0, 'action': 'initApp', 'params': {}}
         workerCls.broadcast_event(EasyDict(msg))
     # msg = {'id': 0, 'action': 'makeModel'}
@@ -126,7 +125,5 @@ def editActions(actionData):
     print('editAction ', EasyDict(actionData))
     msg = EasyDict(actionData)
     msg.id = request.sid
-    msg.isTfSession = True
-    # print(msg)
     workerCls.broadcast_event(msg)
     

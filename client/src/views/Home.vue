@@ -337,7 +337,7 @@ import logoHeading from '@/components/LogoHeading.vue';
             },
             changeCoeff(attr) {
                 let params = attr;//{"attrName":attr.name, "coeff": attr.coeff, "clipTop": attr.clipTop, "clipBottom": attr.clipBottom};
-                this.sendEditAction("changeCoeff_clipped", params);
+                this.sendEditAction("changeCoeff", params);
             },
             getAttributes() {
                 this.sendEditAction("getAttributes", {});

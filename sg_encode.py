@@ -29,13 +29,18 @@ class SGEThread():
         self.w_src = None
         self.w_src_orig = None
         self.w_src_curr = None
-        self.direction = None
+        self.freezeIdxs = []
     
         self.call_func_names = {
             'generateRandomImg': self.generateRandomSrcImg,
+            'randomize': self.generateRandomSrcImg,
+            'changeCoeff': self.changeCoeff_clipped,
+            'clear': self.clear,
             'send_wSrc': self.got_wSrc,
             'send_GImgs': self.got_GImgs
         }
+        
+        self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
 
     ############################## Client Edit Actions ###################
     def generateRandomSrcImg(self, params=None):
@@ -48,7 +53,7 @@ class SGEThread():
         self.w_src = params.w_src
         self.w_src_orig = self.w_src
         self.w_src_curr = self.w_src
-        self.moveLatent(self.w_src, self.selected_attr, 0.0)
+        self.moveLatent(self.w_src, self.direction, 0.0)
     
     def got_GImgs(self, params=None):
         print("Thread got_GImgs ", params.keys())
@@ -57,10 +62,129 @@ class SGEThread():
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImgToClient(resImg, imgSize=self.img_size)
     
-    ############################## Utils ###################
+    def changeCoeff_clipped(self, params=None):
+        print("changeCoeff_clipped ", params)
+        coeffVal = -float(params.coeff)
+        attrName = params.name
+        hasAttrChanged = False
+        if attrName != self.selected_attr:
+            if attrName in self.attr_list:
+                self.setNewAttr(attrName)
+                print("attr changed to " + attrName)
+                hasAttrChanged = True
+                self.w_src = self.w_src_curr
+        else:
+            hasAttrChanged = False
+        self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal, hasAttrChanged=hasAttrChanged)
+        outParams = EasyDict({"w_src": self.w_src_curr})
+        self.broadcastToMainThread("generateImgFromWSrc", outParams)
+    
+    def clear(self, params=None):
+        print("clear ", params)
+        self.w_src = self.w_src_orig
+        self.w_src_curr = self.w_src_orig
+        self.selected_attr = self.attr_list[0]
+        self.direction = np.load('latent_directions/' + self.selected_attr + '.npy')
+        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+        self.freezeIdxs = []
+    
+    ############################## Clipping W ###################################
+    def moveLatent_clipped(self,latent_vector, direction,coeff, clippedTop=True, clippedBottom=False, clipLimit=0.2, clipExtend=0.15,filename="results/resImg.jpg", hasAttrChanged=False):
+        w_curr = latent_vector.copy()
+        w_orig = latent_vector.copy()
+        
+        #Apply latent direction using the coeff value to the original w
+        w_curr[0][0:18] = (latent_vector[0] + coeff*direction)[0:18]
+        w_curr = self.clipW(w_orig, w_curr, clippedTop, clippedBottom, clipLimit, hasAttrChanged=hasAttrChanged)
+        
+        # images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
+        # resImg = PIL.Image.fromarray(images[0], 'RGB')
+        # resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        # # resImg.save(filename)
+        return w_curr
+
+    def clipW(self, w_orig, w_curr, clippedTop=False, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, hasAttrChanged=False):
+        fig = plt.figure(figsize=(6, 4))
+        y = np.arange(512)
+        #Plot two graphs, original diff and after clipped diff
+        
+        mean1 = np.mean(w_orig[0], axis=0)
+        mean2 = np.mean(w_curr[0], axis=0)
+        w_diff = np.subtract(mean2, mean1)
+        #Plot the original difference after latent direction is applied to w
+        # axes = fig.add_subplot(2,1,1)
+        # axes.plot(y, w_diff, 'r')
+
+        #Clip top differences from the modified w
+        pos_ix = self.getPossibleClippedIdxs(w_diff)
+        n_layers = 18
+        curr_freeze, all_freeze = self.getFreezeIdxs()
+        # if not hasAttrChanged:
+        curr_freeze = []
+        overlapping_idxs = []
+        # print("freezeIdxs ", self.freezeIdxs)
+        for idx in range(512):
+            if idx in pos_ix:
+                if idx not in all_freeze:
+                    curr_freeze.append(idx)
+                else:
+                    overlapping_idxs.append(idx)
+            if idx in all_freeze:
+                for l in range(n_layers):
+                    w_curr[0][l][idx] = w_orig[0][l][idx]
+        self.setFreezeIdxs(curr_freeze)
+        # print("overlapping_idxs ", overlapping_idxs)
+        # print("curr_freeze ", curr_freeze)
+
+        mean2 = np.mean(w_curr[0], axis=0)
+        w_diff = np.subtract(mean2, mean1)
+        #Plot the clipped differences
+        # axes = fig.add_subplot(2,1,2)
+        # axes.plot(y, w_diff, 'r')
+        # plt.savefig('results/resPlot.jpg')
+        return w_curr
+
+    def getPossibleClippedIdxs(self, w_diff):
+        clipLimit = 0.5
+        topIx = []
+        botIx = []
+        topIx = np.where(w_diff>clipLimit)[0]
+        botIx = np.where(w_diff<-clipLimit)[0]
+        ix = np.concatenate((topIx, botIx), axis=0)
+        while ix.shape[0] == 0 and clipLimit >0.06:
+            clipLimit -= 0.05
+            topIx = []
+            botIx = []
+            topIx = np.where(w_diff>clipLimit)[0]
+            botIx = np.where(w_diff<-clipLimit)[0]
+            ix = np.concatenate((topIx, botIx), axis=0)
+        # print("ix len %d, clip limit %f"% (ix.shape[0], clipLimit))
+        return ix
+
+    def getFreezeIdxs(self):
+        attrName = self.selected_attr
+        currFreezeIdx = []
+        allFreezeIdx = []
+        found = False
+        for idx_dict in self.freezeIdxs:
+            currFreezeIdx = idx_dict['freeze']
+            if idx_dict['name'] == attrName:
+                found = True
+            else:
+                allFreezeIdx = allFreezeIdx + currFreezeIdx
+        if not found:
+            self.freezeIdxs.append({'name': attrName, 'freeze': []})
+        # print(len(currFreezeIdx), len(allFreezeIdx))
+        return currFreezeIdx, allFreezeIdx
+    
+    def setFreezeIdxs(self, idxs):
+        attrName = self.selected_attr
+        for idx_dict in self.freezeIdxs:
+            if idx_dict['name'] == attrName:
+                idx_dict['freeze'] = idxs
+    ############################## Utils ########################################
     # Move latent vector to a selected attribute direction using coeff value
-    def moveLatent(self, latent_vector, selected_attr, coeff, hasAttrChanged=False):
-        direction = np.load('latent_directions/' + selected_attr +'.npy')
+    def moveLatent(self, latent_vector, direction, coeff, hasAttrChanged=False):
         coeff = -1 * coeff
         new_latent_vector = latent_vector.copy()
         minLayerIdx = self.fixedLayerRanges[0]
@@ -72,7 +196,11 @@ class SGEThread():
 
         outParams = EasyDict({"w_src": new_latent_vector})
         self.broadcastToMainThread("generateImgFromWSrc", outParams)
- 
+
+    def setNewAttr(self, attrName):
+        self.selected_attr = attrName
+        self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
+
     def broadcastImgToClient(self, img, imgSize=256, tag='type', filename='filename'):
         # img.save("results/clientImg.jpg")
         my_dpi = 96
@@ -203,50 +331,11 @@ class StyleGanEncoding():
         self.w_src_orig = self.w_src
         self.w_src_curr = self.w_src
         self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
-
-    def changeCoeff(self, params=None):
-        print("changeCoeff ", params)
-        attrName = params.attrName
-        hasAttrChanged = False
-        if attrName != self.selected_attr[:-4]:
-            if attrName in self.attr_list:
-                self.setNewAttr(attrName)
-                hasAttrChanged = True
-                self.w_src = self.w_src_curr
-        else:
-            hasAttrChanged = False
-        coeffVal = float(params.coeff)
-        self.moveLatentAndGenerate(self.w_src, self.direction, coeffVal, hasAttrChanged=hasAttrChanged)
-
-    def changeCoeff_clipped(self, params=None):
-        print("changeCoeff_clipped ", params)
-        coeffVal = -float(params.coeff)
-        attrName = params.name
-        hasAttrChanged = False
-        if attrName != self.selected_attr[:-4]:
-            if attrName in self.attr_list:
-                self.setNewAttr(attrName)
-                print("attr changed")
-                hasAttrChanged = True
-                self.w_src = self.w_src_curr
-        else:
-            hasAttrChanged = False
-        resImg, self.w_src_curr = self.moveLatent_clipped(self.w_src, self.direction, coeffVal,clippedTop=True, clippedBottom=True, filename="results/"+params.name+".jpg", hasAttrChanged=hasAttrChanged)
-        self.broadcastImg(resImg, imgSize=self.img_size)
     
     def changeFixedLayers(self, params=None):
         print("changeFixedLayers ", params)
         self.fixedLayerRanges = params.fix_layer_ranges
         # self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
-    
-    def clear(self, params=None):
-        print("clear ", params)
-        self.w_src = self.w_src_orig
-        self.w_src_curr = self.w_src_orig
-        self.selected_attr = self.attr_list[0]+'.npy'
-        self.direction = np.load('latent_directions/' + self.selected_attr)
-        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
-        self.freezeIdxs = []
 
     def getAttributes(self, params=None):
         print('getAttributes')
@@ -415,103 +504,6 @@ class StyleGanEncoding():
         resImg = PIL.Image.fromarray(images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImg(resImg, imgSize=self.img_size)
-
-    def moveLatent_clipped(self,latent_vector, direction,coeff, clippedTop=True, clippedBottom=False, clipLimit=0.2, clipExtend=0.15, filename="results/resImg.jpg", hasAttrChanged=False):
-        w_curr = latent_vector.copy()
-        w_orig = latent_vector.copy()
-        
-        #Apply latent direction using the coeff value to the original w
-        w_curr[0][0:18] = (latent_vector[0] + coeff*direction)[0:18]
-        w_curr = self.clipW(w_orig, w_curr, clippedTop, clippedBottom, clipLimit, hasAttrChanged=hasAttrChanged)
-        
-        images = self.Gs.components.synthesis.run(w_curr, **self.Gs_kwargs)
-        resImg = PIL.Image.fromarray(images[0], 'RGB')
-        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-        # resImg.save(filename)
-        return resImg, w_curr
-
-    def clipW(self, w_orig, w_curr, clippedTop=False, clippedBottom=False, clipLimit=0.01, clipExtend=0.15, hasAttrChanged=False):
-        fig = plt.figure(figsize=(6, 4))
-        y = np.arange(512)
-        #Plot two graphs, original diff and after clipped diff
-        
-        mean1 = np.mean(w_orig[0], axis=0)
-        mean2 = np.mean(w_curr[0], axis=0)
-        w_diff = np.subtract(mean2, mean1)
-        #Plot the original difference after latent direction is applied to w
-        axes = fig.add_subplot(2,1,1)
-        axes.plot(y, w_diff, 'r')
-
-        #Clip top differences from the modified w
-        pos_ix = self.getPossibleClippedIdxs(w_diff)
-        n_layers = 18
-        curr_freeze, all_freeze = self.getFreezeIdxs()
-        # if not hasAttrChanged:
-        curr_freeze = []
-        overlapping_idxs = []
-        # print("freezeIdxs ", self.freezeIdxs)
-        for idx in range(512):
-            if idx in pos_ix:
-                if idx not in all_freeze:
-                    curr_freeze.append(idx)
-                else:
-                    overlapping_idxs.append(idx)
-            if idx in all_freeze:
-                for l in range(n_layers):
-                    w_curr[0][l][idx] = w_orig[0][l][idx]
-        self.setFreezeIdxs(curr_freeze)
-        # print("overlapping_idxs ", overlapping_idxs)
-        # print("curr_freeze ", curr_freeze)
-        #         #Set the value for found indexes to be the original value, not the ones modified by the direction vector
-        #         # w_curr[0][l][idxInW] = w_orig[0][l][idxInW]
-        #         # w_curr[0][l][idxInW] += clipExtend
-
-        mean2 = np.mean(w_curr[0], axis=0)
-        w_diff = np.subtract(mean2, mean1)
-        #Plot the clipped differences
-        axes = fig.add_subplot(2,1,2)
-        axes.plot(y, w_diff, 'r')
-        plt.savefig('results/resPlot.jpg')
-        return w_curr
-
-    def getPossibleClippedIdxs(self, w_diff):
-        clipLimit = 0.5
-        topIx = []
-        botIx = []
-        topIx = np.where(w_diff>clipLimit)[0]
-        botIx = np.where(w_diff<-clipLimit)[0]
-        ix = np.concatenate((topIx, botIx), axis=0)
-        while ix.shape[0] == 0 and clipLimit >0.06:
-            clipLimit -= 0.05
-            topIx = []
-            botIx = []
-            topIx = np.where(w_diff>clipLimit)[0]
-            botIx = np.where(w_diff<-clipLimit)[0]
-            ix = np.concatenate((topIx, botIx), axis=0)
-        # print("ix len %d, clip limit %f"% (ix.shape[0], clipLimit))
-        return ix
-
-    def getFreezeIdxs(self):
-        attrName = self.selected_attr[:-4]
-        currFreezeIdx = []
-        allFreezeIdx = []
-        found = False
-        for idx_dict in self.freezeIdxs:
-            currFreezeIdx = idx_dict['freeze']
-            if idx_dict['name'] == attrName:
-                found = True
-            else:
-                allFreezeIdx = allFreezeIdx + currFreezeIdx
-        if not found:
-            self.freezeIdxs.append({'name': attrName, 'freeze': []})
-        # print(len(currFreezeIdx), len(allFreezeIdx))
-        return currFreezeIdx, allFreezeIdx
-
-    def setFreezeIdxs(self, idxs):
-        attrName = self.selected_attr[:-4]
-        for idx_dict in self.freezeIdxs:
-            if idx_dict['name'] == attrName:
-                idx_dict['freeze'] = idxs
 
     def broadcastImg(self, img, imgSize=256, tag='type', filename='filename'):
         img.save("results/clientImg.jpg")
