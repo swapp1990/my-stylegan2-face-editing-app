@@ -1,10 +1,10 @@
 <template>
 <div>
-    <div class="header">
+    <!-- <div class="header">
         <input type="text" v-model="username">
         <button class="menuBtn" @click="login()">Login</button>
         <button class="menuBtn" @click="test()">Test</button>
-    </div>
+    </div> -->
     <div class="title">
         <logo-heading></logo-heading>
     </div>
@@ -97,8 +97,7 @@ import logoHeading from '@/components/LogoHeading.vue';
                 socket: null,
                 logs: [],
                 training: true,
-                myText: "hello",
-                username: "l",
+                username: "anon",
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna'},
@@ -155,7 +154,7 @@ import logoHeading from '@/components/LogoHeading.vue';
         },
         mounted(){
             this.connectSocket();
-            // this.init();
+            this.init();
         },
         methods: {
             getIcon(iconClass) {
@@ -212,18 +211,15 @@ import logoHeading from '@/components/LogoHeading.vue';
                 });
             },
             loadDefaultImg() {
-                // var base64Data = a.images[0].data;
-                console.log("loadDefaultImg");
                 var img = 'url("./resImg.jpg")';
-                console.log(img);
                 this.faceImageBG = img;
             },
             onConnected() {
                 console.log("On Connected");
                 // this.socket.emit('init', this.training);
-                // this.connected = true;
+                this.connected = true;
                 // this.reset();
-                // this.login();
+                this.login();
             },
             login() {
                 this.socket.emit('set-session', {"user": this.username});

@@ -106,7 +106,7 @@ class SGEThread():
         self.w_src_curr = self.w_src_orig
         self.selected_attr = self.attr_list[0]
         self.direction = np.load('latent_directions/' + self.selected_attr + '.npy')
-        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+        self.moveLatent(self.w_src, self.direction, 0.0)
         self.freezeIdxs = []
     
     def generateSearchedImgs(self, params=None):
