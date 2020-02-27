@@ -19,6 +19,7 @@ facial_attributes_list = 'https://drive.google.com/uc?id=1xMM3AFq0r014IIhBLiMCjK
 
 class StyleGanEncoding():
     def __init__(self):
+        self.threadId = 0
         self.Gs = None
 
         self.Gs_kwargs = dnnlib.EasyDict()
@@ -48,6 +49,7 @@ class StyleGanEncoding():
 
         self.call_func_names = {
             'initApp': self.makeModels,
+            'generateRandomImg': self.generateRandomSrcImg,
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff,
             'changeCoeff_clipped': self.changeCoeff_clipped,
@@ -76,19 +78,20 @@ class StyleGanEncoding():
         self.loadAllDirections()
 
         # Generate random latent
-        np.random.seed(10)
-        z = np.random.randn(1, *self.Gs.input_shape[1:])
-        self.w_src = self.Gs.components.mapping.run(z, None)
-        self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
-        self.w_src_orig = self.w_src
-        self.w_src_curr = self.w_src
-        self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
+        
+        # z = np.random.randn(1, *self.Gs.input_shape[1:])
+        # self.w_src = self.Gs.components.mapping.run(z, None)
+        # self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
+        # self.w_src_orig = self.w_src
+        # self.w_src_curr = self.w_src
+        # self.moveLatentAndGenerate(self.w_src, self.direction, 0.0)
 
         #send gallery
         # self.sendSavedGallery()
     
     def generateRandomSrcImg(self, params=None):
         print("generateRandomSrcImg ", params)
+        # np.random.seed(10)
         z = np.random.randn(1, *self.Gs.input_shape[1:])
         self.w_src = self.Gs.components.mapping.run(z, None)
         self.w_src = self.w_avg + (self.w_src - self.w_avg) * self.truncation_psi
@@ -296,7 +299,7 @@ class StyleGanEncoding():
     def moveLatentAndGenerate(self, latent_vector, direction, coeff, hasAttrChanged=False):
         coeff = -1 * coeff
         new_latent_vector = latent_vector.copy()
-        print(type(new_latent_vector), new_latent_vector.shape)
+        # print(type(new_latent_vector), new_latent_vector.shape)
         minLayerIdx = self.fixedLayerRanges[0]
         maxLayerIdx = self.fixedLayerRanges[1]
         new_latent_vector[0][minLayerIdx:maxLayerIdx] = (latent_vector[0] + coeff*direction)[minLayerIdx:maxLayerIdx]
@@ -418,22 +421,23 @@ class StyleGanEncoding():
         mp_fig = mpld3.fig_to_dict(fig)
         plt.close('all')
         msg = {'action': 'sendImg', 'fig': mp_fig, 'tag': tag, 'filename': filename}
-        self.broadcast(msg)
+        self.broadcast(EasyDict(msg))
     
     def broadcast(self, msg):
-        msg["id"] = 1
+        msg.id = self.threadId
         workerCls.broadcast_event(msg)
 
+    def sendTest(self):
+        msg = {'action': 'testAction'}
+        self.broadcast(msg)
     ################### Thread Methods ###################################
-    def doWork(self, msg):
-        if isinstance(msg, EasyDict):
-            self.call_func_names[msg.action](msg.params) 
-        elif msg['action'] == 'initApp':
-            self.initApp(msg['config'])
-        elif msg['action'] == 'makeModel':
-            self.makeModels()
-        # elif msg['action'] == 'randomize':
-        #     self.generateRandomSrcImg()
+    def doWork(self, payload):
+        assert(isinstance(payload, EasyDict))
+        if 'origId' in payload.keys():
+            self.threadId = payload.origId
+        else:
+            self.threadId = payload.id
+        self.call_func_names[payload.action](payload.params)
 
     ############### Main 
 if __name__ == "__main__":

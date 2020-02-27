@@ -32,20 +32,31 @@ class Worker(threading.Thread):
                 if self.id == data['id']:
                     self.emitLogs(data)
 
-    def doWork(self, msg):
+    def doWork(self, payload):
         print("do work ", self.id)
-        if(self.id == 0):
-            self.modelCls.doWork(msg)
+        #If payload params has 'isTfSession' set to True, means the work must be done by the main thread (thread 0) which has the tf sess and the model initialized.
+        if 'params' in payload.keys():
+            if 'isTfSession' in payload.keys() and payload.isTfSession and payload.id != 0:
+                print("do work in main")
+                payload.origId = payload.id
+                payload.id = 0
+                broadcast_event(payload)
+            else:
+                self.modelCls.doWork(payload)
         else:
-            self.emitGeneral(msg)
+            self.emitGeneral(payload)
+        # if(self.id == 0):
+        #     self.modelCls.doWork(msg)
+        # else:
+        #     self.emitGeneral(msg)
     
     def emitLogs(self, msg):
         print("emit logs ", msg)
         self.socketio.emit('logs', msg)
     
     def emitGeneral(self, msg):
-        #print('emitGeneral ', msg)
-        self.socketio.emit('General', msg)
+        # print('emitGeneral ', msg)
+        self.socketio.emit('General', msg, room = msg.id)
 
     def stop(self):
         print("stop ", self.id)
@@ -56,7 +67,7 @@ def clear():
     active_queues = []
     for t in active_threads:
         t.stop()
-    # active_threads = []
+    print("cleared all threads", active_threads)
 
 def broadcast_event(data):
     # print(data)

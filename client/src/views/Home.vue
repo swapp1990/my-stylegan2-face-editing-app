@@ -1,5 +1,10 @@
 <template>
 <div>
+    <div class="header">
+        <input type="text" v-model="username">
+        <button class="menuBtn" @click="login()">Login</button>
+        <button class="menuBtn" @click="test()">Test</button>
+    </div>
     <div class="title">
         <logo-heading></logo-heading>
     </div>
@@ -93,6 +98,7 @@ import logoHeading from '@/components/LogoHeading.vue';
                 logs: [],
                 training: true,
                 myText: "hello",
+                username: "",
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna'},
@@ -149,7 +155,7 @@ import logoHeading from '@/components/LogoHeading.vue';
         },
         mounted(){
             this.connectSocket();
-            this.init();
+            // this.init();
         },
         methods: {
             getIcon(iconClass) {
@@ -190,6 +196,9 @@ import logoHeading from '@/components/LogoHeading.vue';
                     console.log("connected");
                     this.onConnected();
                 });
+                this.socket.on('loggedin', (data)=>{
+                    console.log("logged in ", data);
+                });
                 this.socket.on('logs',(logs)=>{
                     console.log(logs);
                     this.handleLogs(logs);
@@ -210,9 +219,17 @@ import logoHeading from '@/components/LogoHeading.vue';
                 this.faceImageBG = img;
             },
             onConnected() {
-                this.socket.emit('init', this.training);
-                this.connected = true;
-                this.reset();
+                console.log("On Connected");
+                // this.socket.emit('init', this.training);
+                // this.connected = true;
+                // this.reset();
+                // this.login();
+            },
+            login() {
+                this.socket.emit('set-session', {"user": this.username});
+            },
+            test() {
+                this.socket.emit('test-session', {"user": this.username});
             },
             handleLogs(msg) {
                 if(msg.logid) {
@@ -349,6 +366,12 @@ import logoHeading from '@/components/LogoHeading.vue';
 </script>
 
 <style scoped lang="scss">
+.header {
+    display: flex;
+    flex-direction: row;
+    align-items: right;
+    justify-content: center;
+}
 .title {
     display: flex;
     flex-direction: row;
