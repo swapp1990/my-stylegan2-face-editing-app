@@ -17,6 +17,94 @@ import faceMicrosoft as faceMicro
 network_pkl = 'cache/generator_model-stylegan2-config-f.pkl'
 facial_attributes_list = 'https://drive.google.com/uc?id=1xMM3AFq0r014IIhBLiMCjKJJvbhLUQ9t'
 
+class SGEThread():
+    def __init__(self, threadId = 0):
+        self.attr_list = ['smile', 'gender', 'age', 'beauty', 'glasses', 'race_black', 'race_yellow', 'emotion_fear', 'emotion_angry', 'emotion_disgust', 'emotion_easy', 'eyes_open', 'angle_horizontal', 'angle_pitch', 'face_shape', 'height', 'width']
+        self.fixedLayerRanges = [0,8]
+        self.img_size = 512
+
+        self.selected_attr = self.attr_list[0]
+        self.threadId = threadId
+
+        self.w_src = None
+        self.w_src_orig = None
+        self.w_src_curr = None
+        self.direction = None
+    
+        self.call_func_names = {
+            'generateRandomImg': self.generateRandomSrcImg,
+            'send_wSrc': self.got_wSrc,
+            'send_GImgs': self.got_GImgs
+        }
+
+    ############################## Client Edit Actions ###################
+    def generateRandomSrcImg(self, params=None):
+        print("Thread generateRandomSrcImg ", params)
+        outParams = EasyDict({})
+        self.broadcastToMainThread("runRandomMapping", outParams)
+    
+    def got_wSrc(self, params=None):
+        print("Thread got_wSrc ", params.keys())
+        self.w_src = params.w_src
+        self.w_src_orig = self.w_src
+        self.w_src_curr = self.w_src
+        self.moveLatent(self.w_src, self.selected_attr, 0.0)
+    
+    def got_GImgs(self, params=None):
+        print("Thread got_GImgs ", params.keys())
+        g_images = params.G_imgs
+        resImg = PIL.Image.fromarray(g_images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        self.broadcastImgToClient(resImg, imgSize=self.img_size)
+    
+    ############################## Utils ###################
+    # Move latent vector to a selected attribute direction using coeff value
+    def moveLatent(self, latent_vector, selected_attr, coeff, hasAttrChanged=False):
+        direction = np.load('latent_directions/' + selected_attr +'.npy')
+        coeff = -1 * coeff
+        new_latent_vector = latent_vector.copy()
+        minLayerIdx = self.fixedLayerRanges[0]
+        maxLayerIdx = self.fixedLayerRanges[1]
+        new_latent_vector[0][minLayerIdx:maxLayerIdx] = (latent_vector[0] + coeff*direction)[minLayerIdx:maxLayerIdx]
+        if hasAttrChanged:
+            self.w_src = new_latent_vector
+        self.w_src_curr = new_latent_vector
+
+        outParams = EasyDict({"w_src": new_latent_vector})
+        self.broadcastToMainThread("generateImgFromWSrc", outParams)
+ 
+    def broadcastImgToClient(self, img, imgSize=256, tag='type', filename='filename'):
+        # img.save("results/clientImg.jpg")
+        my_dpi = 96
+        # img_size = (256,256)
+        fig = plt.figure(figsize=(imgSize/my_dpi, imgSize/my_dpi), dpi=my_dpi)
+        ax1 = fig.add_subplot(1,1,1)
+        ax1.set_xticks([])
+        ax1.set_yticks([])
+        ax1.imshow(img, cmap='plasma')
+        # plt.show()
+        mp_fig = mpld3.fig_to_dict(fig)
+        plt.close('all')
+        payload = {'action': 'sendImg', 'fig': mp_fig, 'tag': tag, 'filename': filename}
+        self.broadcastToClient(EasyDict(payload))
+    
+    def broadcastToClient(self, payload):
+        payload.id = self.threadId
+        workerCls.broadcast_event(payload)
+    
+    def broadcastToMainThread(self, action, params):
+        msg = EasyDict({})
+        msg.action = action
+        msg.id = 0
+        params.clientSessId = self.threadId
+        msg.params = params
+        workerCls.broadcast_event(msg)
+
+    ################### Thread Methods ###################################
+    def doWork(self, payload):
+        assert(isinstance(payload, EasyDict))
+        self.call_func_names[payload.action](payload.params)
+
 class StyleGanEncoding():
     def __init__(self):
         self.threadId = 0
@@ -49,6 +137,8 @@ class StyleGanEncoding():
 
         self.call_func_names = {
             'initApp': self.makeModels,
+            'runRandomMapping': self.runRandomMapping,
+            'generateImgFromWSrc': self.generateImgFromWSrc,
             'generateRandomImg': self.generateRandomSrcImg,
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff,
@@ -89,6 +179,21 @@ class StyleGanEncoding():
         #send gallery
         # self.sendSavedGallery()
     
+    def runRandomMapping(self, params=None):
+        print("runRandomMapping ", params)
+        z = np.random.randn(1, *self.Gs.input_shape[1:])
+        w_src = self.Gs.components.mapping.run(z, None)
+        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+        msg = {'action': 'send_wSrc', 'params': {'w_src': w_src}}
+        self.broadcastToThread(EasyDict(msg), params.clientSessId)
+    
+    def generateImgFromWSrc(self, params=None):
+        print("generateImgFromWSrc ", params.keys())
+        w_src = params.w_src
+        G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
+        msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs}}
+        self.broadcastToThread(EasyDict(msg), params.clientSessId)
+
     def generateRandomSrcImg(self, params=None):
         print("generateRandomSrcImg ", params)
         # np.random.seed(10)
@@ -426,6 +531,10 @@ class StyleGanEncoding():
     def broadcast(self, msg):
         msg.id = self.threadId
         workerCls.broadcast_event(msg)
+    
+    def broadcastToThread(self, msg, threadId):
+        msg.id = threadId
+        workerCls.broadcast_event(msg)
 
     def sendTest(self):
         msg = {'action': 'testAction'}
@@ -433,10 +542,10 @@ class StyleGanEncoding():
     ################### Thread Methods ###################################
     def doWork(self, payload):
         assert(isinstance(payload, EasyDict))
-        if 'origId' in payload.keys():
-            self.threadId = payload.origId
-        else:
-            self.threadId = payload.id
+        # if 'origId' in payload.keys():
+        #     self.threadId = payload.origId
+        # else:
+        #     self.threadId = payload.id
         self.call_func_names[payload.action](payload.params)
 
     ############### Main 

@@ -88,14 +88,12 @@ def set_session(data):
     print(data, request.sid)
     users.append({"user": data['user'], "sid": request.sid})
     print(users)
-    global stylegan_encode
-    if stylegan_encode is not None:
-        threadUser = workerCls.Worker(request.sid, stylegan_encode, socketio=socketio)
-        threadUser.start()
-        #Send first random img to each client seperately as soon as they login
-        msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
-        msg.isTfSession = True
-        workerCls.broadcast_event(EasyDict(msg))
+    stylegan_thread = sg_encode.SGEThread(request.sid)
+    threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)
+    threadUser.start()
+    #Send first random img to each client seperately as soon as they login
+    msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
+    workerCls.broadcast_event(EasyDict(msg))
 
 @socketio.on('test-session')
 def test_session(payload):

@@ -10,7 +10,7 @@ class Worker(threading.Thread):
         self.id = id
         self.modelCls = modelCls
         self.socketio = socketio
-        print("thread ", self.id)
+        # print("thread ", self.id)
         active_queues.append(self.mailbox)
         active_threads.append(self)
     
@@ -34,29 +34,19 @@ class Worker(threading.Thread):
 
     def doWork(self, payload):
         print("do work ", self.id)
-        #If payload params has 'isTfSession' set to True, means the work must be done by the main thread (thread 0) which has the tf sess and the model initialized.
         if 'params' in payload.keys():
-            if 'isTfSession' in payload.keys() and payload.isTfSession and payload.id != 0:
-                print("do work in main")
-                payload.origId = payload.id
-                payload.id = 0
-                broadcast_event(payload)
-            else:
-                self.modelCls.doWork(payload)
+            self.modelCls.doWork(payload)
         else:
             self.emitGeneral(payload)
-        # if(self.id == 0):
-        #     self.modelCls.doWork(msg)
-        # else:
-        #     self.emitGeneral(msg)
     
     def emitLogs(self, msg):
         print("emit logs ", msg)
         self.socketio.emit('logs', msg)
     
-    def emitGeneral(self, msg):
-        # print('emitGeneral ', msg)
-        self.socketio.emit('General', msg, room = msg.id)
+    #Emit 'General' payload to client with the given session id. Client handles based on the content of the payload
+    def emitGeneral(self, payload):
+        print('emitGeneral ', payload.keys())
+        self.socketio.emit('General', payload, room = payload.id)
 
     def stop(self):
         print("stop ", self.id)
