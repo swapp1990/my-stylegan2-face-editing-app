@@ -20,20 +20,20 @@ class Worker(threading.Thread):
             if data == 'shutdown':
                 return
             if 'action' in data.keys():
-                print(self, 'received a message', data['action'], str(data['id']))
+                # print(self, 'received a message', data['action'], str(data['id']))
                 if self.id == data['id']:
                     self.doWork(data)
             elif 'actionData' in data.keys():
-                print(self, 'received a message', data['actionData'], str(data['id']))
+                # print(self, 'received a message', data['actionData'], str(data['id']))
                 if self.id == data['id']:
                     self.doWork(data)
             elif 'log' in data.keys():
-                print(self, 'received a message', data['log'], str(data['id']))
+                # print(self, 'received a message', data['log'], str(data['id']))
                 if self.id == data['id']:
                     self.emitLogs(data)
 
     def doWork(self, payload):
-        print("do work ", self.id)
+        # print("do work ", self.id)
         if 'params' in payload.keys():
             self.modelCls.doWork(payload)
         else:
@@ -45,7 +45,7 @@ class Worker(threading.Thread):
     
     #Emit 'General' payload to client with the given session id. Client handles based on the content of the payload
     def emitGeneral(self, payload):
-        print('emitGeneral ', payload.keys())
+        # print('emitGeneral ', payload.keys())
         if 'broadcastToAll' in payload.keys():
             if payload.broadcastToAll:
                 self.socketio.emit('General', payload)

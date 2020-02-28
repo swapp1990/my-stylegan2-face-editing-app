@@ -78,8 +78,10 @@ class SGEThread():
     
     def got_Img_W(self, params=None):
         print("Thread got_GImgs ", params.keys())
-        self.w_src = params.w_src
-        self.w_src_curr = params.w_src
+        if 'update_curr' in params.keys():
+            if params.update_curr:
+                self.w_src = params.w_src
+                self.w_src_curr = params.w_src
         g_images = params.G_imgs
         resImg = PIL.Image.fromarray(g_images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
@@ -147,9 +149,17 @@ class SGEThread():
     def mixStyleImg(self, params=None):
         outParams = EasyDict({})
         outParams.selectedStyle = np.array(self.stylemix_latents[int(params.styleImgIdx)])
-        outParams.w_src_curr = self.w_src_curr
-        outParams.mixLayers = [0,8]
+        outParams.w_src_curr = self.w_src_curr.copy()
+        outParams.mixLayers = np.arange(0,8)
         outParams.mixIdx = [0, 512]
+        layersMixMap = []
+        if "layersMixMap" in params.keys():
+            layersMixMap = params.layersMixMap
+            mixLayers = []
+            for l in layersMixMap:
+                if l['checked'] == True:
+                    mixLayers.append(int(l['id']))
+            outParams.mixLayers = mixLayers
         self.broadcastToMainThread("generateStyleMixedImg", outParams)
 
     ############################## Clipping W ###################################
@@ -600,18 +610,17 @@ class StyleGanEncoding():
 
     ############################# Style Mixing ###############################################
     def generateStyleMixedImg(self, params):
-        print("sendStyleMixedImg ", params.keys())
+        print("generateStyleMixedImg ", params.keys())
         selectedStyle = params.selectedStyle
-        sl = params.mixLayers[0]
-        el = params.mixLayers[1]
+        mixLayers = params.mixLayers
         si= params.mixIdx[0]
         ei= params.mixIdx[1]
         w_src_curr = params.w_src_curr
-        for idx in range(si, ei):
-            for l in range(sl,el):
+        for l in mixLayers:
+            for idx in range(si, ei):
                 w_src_curr[0][l][idx] = selectedStyle[l][idx]
         images = self.Gs.components.synthesis.run(w_src_curr, **self.Gs_kwargs)
-        msg = {'action': 'send_Img_W', 'params': {'G_imgs': images, 'w_src': w_src_curr}}
+        msg = {'action': 'send_Img_W', 'params': {'G_imgs': images, 'w_src': w_src_curr, 'update_curr': False}}
         self.broadcastToThread(EasyDict(msg), params.clientSessId)
 
     #Testing

@@ -10,7 +10,14 @@
     </div>
     <div class="front">
         <div class="sidemenu left">
-            <scroll-gallery :mixImgs="galleryMixImgs" @onMiximgClick="onMiximgClick"></scroll-gallery>
+            <div class="wrapper-left">
+                <div class="item1">
+                    <checkbox-picker :initMax="5" v-on:checked="layerPicked"></checkbox-picker>
+                </div>
+                <div class="item2">
+                    <scroll-gallery :mixImgs="galleryMixImgs" @onMiximgClick="onMiximgClick"></scroll-gallery>
+                </div>
+            </div>
         </div>
         <div class="container">
             <header>
@@ -78,6 +85,7 @@ import searchExpand from '@/components/FancySearch.vue';
 import fractalGrid from '@/components/FractalGrid.vue';
 import logoHeading from '@/components/LogoHeading.vue';
 import scrollGallery from '@/components/VerticalScrollImg.vue';
+import checkboxPicker from '@/components/CheckboxPicker.vue';
 
     export default {
         name: "neuMenu",
@@ -86,6 +94,7 @@ import scrollGallery from '@/components/VerticalScrollImg.vue';
             rippleBtn: rippleBtn,
             rippleCounter: rippleCounter,
             radialBtn: radialBtn,
+            checkboxPicker: checkboxPicker,
             searchExpand: searchExpand,
             fractalGrid: fractalGrid,
             scrollGallery: scrollGallery
@@ -152,7 +161,9 @@ import scrollGallery from '@/components/VerticalScrollImg.vue';
                     }
                 },
                 galleryImgs: [],
-                galleryMixImgs: []
+                galleryMixImgs: [],
+                layersMixMap: [],
+                selectedImgIdx: 0
             }
         },
         mounted(){
@@ -168,6 +179,11 @@ import scrollGallery from '@/components/VerticalScrollImg.vue';
                     return "attrTabSelected";
                 }
                 return "attrTab";
+            },
+            layerPicked(vals) {
+                this.layersMixMap = vals;
+                let params = {"styleImgIdx": this.selectedImgIdx, "layersMixMap": this.layersMixMap};
+                this.sendEditAction("mixStyleImg", params);
             },
             selectTab(attrTab) {
                 this.selectedAttrTab = attrTab.name;
@@ -185,7 +201,8 @@ import scrollGallery from '@/components/VerticalScrollImg.vue';
                 this.calculateFilteredAttr();
             },
             onMiximgClick(imgIdx) {
-                let params = {"styleImgIdx": imgIdx};
+                this.selectedImgIdx = imgIdx;
+                let params = {"styleImgIdx": imgIdx, "layersMixMap": this.layersMixMap};
                 this.sendEditAction("mixStyleImg", params);
             },
             calculateFilteredAttr() {
@@ -509,6 +526,7 @@ $shadow2: $shadow-tl2 $white, $shadow-br2 $dark;
     border-radius: $radius;
     box-shadow: $shadow;
     padding: 10px 20px 20px 0px;
+    overflow-y: scroll;
     // margin: auto;
     .left {
         margin-right: 0;
@@ -576,6 +594,13 @@ $shadow2: $shadow-tl2 $white, $shadow-br2 $dark;
                     font-weight: 600;
                 }
             }
+    }
+
+    .wrapper-left {
+        display: grid;
+        grid-template-columns: 0.5fr 2.5fr;
+        grid-gap: 5px;
+        grid-auto-rows: auto;
     }
 
 }

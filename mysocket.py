@@ -27,7 +27,7 @@ stylegan_encode = None
 users = []
 
 def runServer():
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
 
 @socketio.on('connect')
 def connect():
@@ -56,7 +56,7 @@ def set_session(data):
 
 @socketio.on('editAction')
 def editActions(actionData):
-    print('editAction ', EasyDict(actionData))
+    print('editAction ', actionData.keys())
     msg = EasyDict(actionData)
     msg.id = request.sid
     workerCls.broadcast_event(msg)
