@@ -10,8 +10,6 @@ import mpld3
 import pickle
 import gzip
 import time
-import base64
-from io import BytesIO
 
 from server.threads import Worker as workerCls
 from app.search import search
@@ -42,12 +40,16 @@ class SGEThread():
             'clear': self.clear,
             'sendSearchedImages': self.generateSearchedImgs,
             'saveLatent': self.saveLatent,
+            'mixStyleImg': self.mixStyleImg,
             'send_wSrc': self.got_wSrc,
             'send_GImgs': self.got_GImgs,
-            'send_Img_W': self.got_Img_W
+            'send_Img_W': self.got_Img_W,
+            'send_stylemix_imgs': self.got_stylemix
         }
         
         self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
+        self.stylemix_latents = []
+        self.sendStyleMixGallery()
 
     ############################## Client Edit Actions ###################
     def generateRandomSrcImg(self, params=None):
@@ -83,6 +85,12 @@ class SGEThread():
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         self.broadcastImgToClient(resImg, imgSize=self.img_size)
     
+    def got_stylemix(self, params=None):
+        print("Thread got_stylemix ", params.keys())
+        g_images = params.imgs
+        self.stylemix_latents = params.stylemix_latents
+        self.sendGalleryToClient(g_images, tag='styleMixGallery')
+
     def changeCoeff_clipped(self, params=None):
         print("changeCoeff_clipped ", params)
         coeffVal = -float(params.coeff)
@@ -131,6 +139,19 @@ class SGEThread():
 
         time.sleep(0.5)
         self.sendSavedGallery()
+  
+    def sendStyleMixGallery(self):
+        outParams = EasyDict({})
+        self.broadcastToMainThread("generateStylemixGalleryImages", outParams)
+
+    def mixStyleImg(self, params=None):
+        outParams = EasyDict({})
+        outParams.selectedStyle = np.array(self.stylemix_latents[int(params.styleImgIdx)])
+        outParams.w_src_curr = self.w_src_curr
+        outParams.mixLayers = [0,8]
+        outParams.mixIdx = [0, 512]
+        self.broadcastToMainThread("generateStyleMixedImg", outParams)
+
     ############################## Clipping W ###################################
     def moveLatent_clipped(self,latent_vector, direction,coeff, hasAttrChanged=False):
         w_curr = latent_vector.copy()
@@ -253,14 +274,14 @@ class SGEThread():
             outParams = EasyDict({"w_src": w_srsc, "tag": "gallery"})
             self.broadcastToMainThread("generateImgFromWSrc", outParams)
 
-    def sendGalleryToClient(self, images):
+    def sendGalleryToClient(self, images, tag='gallery'):
         galleryImgs = []
         for idx in range(images.shape[0]):
             resImg = PIL.Image.fromarray(images[idx], 'RGB')
             resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
             mp_fig = self.getImageFig(resImg)
             galleryImgs.append({'id': idx, 'mp_fig': mp_fig})
-        payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': 'gallery'}
+        payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': tag}
         self.broadcastToClient(EasyDict(payload))
 
     def getImageFig(self, img, imgSize=512):
@@ -342,6 +363,8 @@ class StyleGanEncoding():
             'runRandomMapping': self.runRandomMapping,
             'generateImgFromWSrc': self.generateImgFromWSrc,
             'generateSearchedImgs': self.generateSearchedImgs,
+            'generateStylemixGalleryImages': self.generateStylemixGalleryImages,
+            'generateStyleMixedImg': self.generateStyleMixedImg,
             'getAttributes': self.getAttributes,
         }
         
@@ -453,6 +476,21 @@ class StyleGanEncoding():
         msg = {'action': 'sendAttr', 'attr': self.currAttrDictToSave['facesAttr']}
         self.broadcast(msg)
 
+    def generateStylemixGalleryImages(self, params=None):
+        print("sendStylemixGalleryImages")
+        stylemix_latents = []
+        for i in range(4):
+            z = np.random.randn(1, *self.Gs.input_shape[1:])
+            w_src = self.Gs.components.mapping.run(z, None)
+            w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+            w_src = np.squeeze(w_src)
+            stylemix_latents.append(w_src)
+        stylemix_latents = np.array(stylemix_latents)
+        print("stylemix_latents ", stylemix_latents.shape)
+        images = self.Gs.components.synthesis.run(stylemix_latents, **self.Gs_kwargs)
+        msg = {'action': 'send_stylemix_imgs', 'params': {'imgs': images, 'stylemix_latents': stylemix_latents}}
+        self.broadcastToThread(EasyDict(msg), params.clientSessId)
+
     ############################## Client Search Actions #####################################
     def loadAttributeLabelMapping(self):
         pkl_file = open('results/savedAttr.pkl', 'rb')
@@ -465,6 +503,20 @@ class StyleGanEncoding():
             direction = np.load('latent_directions/' + selectAttr)
             self.all_directions[a] = direction
 
+    def getImageByText(self, text=""):
+        dir_list_ordered = search.getDirListfromSearchTxt(text)
+        z = np.random.randn(1, *self.Gs.input_shape[1:])
+        w_src = self.Gs.components.mapping.run(z, None)
+        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
+        path = "results/mix/"
+        for j,attr in enumerate(dir_list_ordered):
+            self.selected_attr = attr['name']+'.npy'
+            direction = self.all_directions[attr['name']]
+            coeff = attr['coeff']
+            filename = path+ attr['name'] + str(j) + ".jpg"
+            resImg, w_src = self.moveLatent_clipped(w_src, direction, coeff, filename=filename)
+            # print(attr['name'], self.freezeIdxs)
+        return resImg, w_src
     #Testing
     def getSearchImage(self):
         mini_bs = 1
@@ -546,6 +598,44 @@ class StyleGanEncoding():
         # resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
         resImg.save("resImg.jpg") 
 
+    ############################# Style Mixing ###############################################
+    def generateStyleMixedImg(self, params):
+        print("sendStyleMixedImg ", params.keys())
+        selectedStyle = params.selectedStyle
+        sl = params.mixLayers[0]
+        el = params.mixLayers[1]
+        si= params.mixIdx[0]
+        ei= params.mixIdx[1]
+        w_src_curr = params.w_src_curr
+        for idx in range(si, ei):
+            for l in range(sl,el):
+                w_src_curr[0][l][idx] = selectedStyle[l][idx]
+        images = self.Gs.components.synthesis.run(w_src_curr, **self.Gs_kwargs)
+        msg = {'action': 'send_Img_W', 'params': {'G_imgs': images, 'w_src': w_src_curr}}
+        self.broadcastToThread(EasyDict(msg), params.clientSessId)
+
+    #Testing
+    def doStyleMixing(self, si=0, ei=512):
+        print(si, ei)
+        sl = 0
+        el = 18
+        path = "results/mix/"
+        img, w_src_1 = self.getImageByText("black man")
+        img.save(path+"img1.jpg")
+        img, w_src_2 = self.getImageByText("white woman")
+        img.save(path+"img2.jpg")
+
+        w_src_1c = w_src_1.copy()
+        w_src_2c = w_src_2.copy()
+        for idx in range(si, ei):
+            for l in range(sl,el):
+                w_src_1c[0][l][idx] = w_src_2c[0][l][idx]
+
+        images = self.Gs.components.synthesis.run(w_src_1c, **self.Gs_kwargs)
+        resImg = PIL.Image.fromarray(images[0], 'RGB')
+        resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+        resImg.save(path+"img4.jpg")
+
 ###############################################################################################
     def broadcast(self, msg):
         msg.id = self.threadId
@@ -578,9 +668,12 @@ if __name__ == "__main__":
     sge.loadAllDirections()
     # sge.getSearchImage()
 
-    sge.sendSearchedImages(EasyDict({"text": "a older smiling black girl"}))
+    # sge.sendSearchedImages(EasyDict({"text": "a older smiling black girl"}))
     # sge.getDirListfromSearchTxt("a young black girl")
     # sge.getDirListfromSearchTxt("a older white man")
+
+    sge.doStyleMixing()
+    # sge.getImageByText("older smiling black man")
     
     # params = EasyDict({'name': 'gender', 'coeff': '-5.75', 'clipTop': True, 'clipBottom': True, 'clipLimit': 0.1})
     # sge.changeCoeff_clipped(params)

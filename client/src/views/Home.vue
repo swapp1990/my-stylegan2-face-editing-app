@@ -10,7 +10,7 @@
     </div>
     <div class="front">
         <div class="sidemenu left">
-
+            <scroll-gallery :mixImgs="galleryMixImgs" @onMiximgClick="onMiximgClick"></scroll-gallery>
         </div>
         <div class="container">
             <header>
@@ -77,6 +77,7 @@ import radialBtn from '@/components/RadialButton.vue';
 import searchExpand from '@/components/FancySearch.vue';
 import fractalGrid from '@/components/FractalGrid.vue';
 import logoHeading from '@/components/LogoHeading.vue';
+import scrollGallery from '@/components/VerticalScrollImg.vue';
 
     export default {
         name: "neuMenu",
@@ -86,7 +87,8 @@ import logoHeading from '@/components/LogoHeading.vue';
             rippleCounter: rippleCounter,
             radialBtn: radialBtn,
             searchExpand: searchExpand,
-            fractalGrid: fractalGrid
+            fractalGrid: fractalGrid,
+            scrollGallery: scrollGallery
         },
         computed: {
         },
@@ -149,7 +151,8 @@ import logoHeading from '@/components/LogoHeading.vue';
                         hairColor: "brown"
                     }
                 },
-                galleryImgs: []
+                galleryImgs: [],
+                galleryMixImgs: []
             }
         },
         mounted(){
@@ -180,6 +183,10 @@ import logoHeading from '@/components/LogoHeading.vue';
             init() {
                 //Calculate filterAttributes
                 this.calculateFilteredAttr();
+            },
+            onMiximgClick(imgIdx) {
+                let params = {"styleImgIdx": imgIdx};
+                this.sendEditAction("mixStyleImg", params);
             },
             calculateFilteredAttr() {
                 this.filteredAttr = this.attributes.filter(a => {
@@ -250,7 +257,7 @@ import logoHeading from '@/components/LogoHeading.vue';
                     } else if(content.action == "sendAttr") {
                         this.handleReceivedAttr(content);
                     } else if(content.action == "sendGallery") {
-                        if(content.tag.includes("gallery")) {
+                        if(content.tag === "gallery") {
                             this.galleryImgs = [];
                             content.gallery.forEach(gi => {
                                 let galleryImg = {};
@@ -260,6 +267,16 @@ import logoHeading from '@/components/LogoHeading.vue';
                                     galleryImg.png = base64Data;
                                 });
                                 this.galleryImgs.push(galleryImg);
+                            });
+                        } else if(content.tag === "styleMixGallery") {
+                            content.gallery.forEach(gi => {
+                                let galleryImg = {};
+                                galleryImg.galleryIdx = gi.id;
+                                gi.mp_fig.axes.forEach(a => {
+                                    var base64Data = a.images[0].data;
+                                    galleryImg.png = base64Data;
+                                });
+                                this.galleryMixImgs.push(galleryImg);
                             });
                         }
                     }
@@ -275,7 +292,7 @@ import logoHeading from '@/components/LogoHeading.vue';
                 if(content.tag.includes("gallery")) {
                     // console.log(content.tag);
                     let galleryIdx = content.tag.split("gallery")[1]
-                    console.log("galleryIdx ", galleryIdx);
+                    // console.log("galleryIdx ", galleryIdx);
                     let galleryImg = {};
                     galleryImg.galleryIdx = galleryIdx;
                     content.fig.axes.forEach(a => {
@@ -283,7 +300,17 @@ import logoHeading from '@/components/LogoHeading.vue';
                         galleryImg.png = base64Data;
                     });
                     this.galleryImgs.push(galleryImg);
-                } else {
+                } else if(content.tag.includes("styleMixGallery")) {
+                    let galleryIdx = content.tag.split("styleMixGallery")[1];
+                    let galleryImg = {};
+                    galleryImg.galleryIdx = galleryIdx;
+                    content.fig.axes.forEach(a => {
+                        var base64Data = a.images[0].data;
+                        galleryImg.png = base64Data;
+                    });
+                    this.galleryMixImgs.push(galleryImg);
+                }
+                else {
                     content.fig.axes.forEach(a => {
                         // console.log(a.images[0].data);
                         var base64Data = a.images[0].data;
