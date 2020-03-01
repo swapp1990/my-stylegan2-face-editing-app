@@ -9,7 +9,8 @@
 $font-family-bravo: 'Roboto', sans-serif;
 
 #app {
-  margin-top: 10px;
+  // margin-top: 10px;
+  background-color: white;
   font-family:$font-family-bravo;
 }
 </style>

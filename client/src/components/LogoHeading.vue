@@ -20,8 +20,16 @@ h3 {
   margin: 11px 0 17px 0;
   font-size: 60px;
   line-height: 60px;
-  color: #f1ebe5;
+  color: #e9c9a9;
   text-shadow: 0 12px 8.896px #c4b59d,0 -3px 1px #fff;
   letter-spacing: -4px;
+}
+@media screen and (max-width:720px) {
+h3 {
+    font-size: 30px;
+    line-height: 30px;
+    margin: 5px 0 8px 0;
+    text-shadow: 0 6px 4px #c4b59d,0 -3px 1px #fff;
+}
 }
 </style>
