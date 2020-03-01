@@ -1,7 +1,7 @@
 <template>
 <div class="frame">
 	<div class="range">
-		<input type="range" :min="min" :max="max" step="0.5" v-model="currAttrVal_l" @change="attrChanged">
+		<input type="range" :min="min" :max="max" step="0.25" v-model="currAttrVal_l" @change="attrChanged">
 	</div>
 </div>
 </template>
@@ -28,7 +28,6 @@
                 immediate: true,
                 deep: true,
                 handler(val, oldVal) {
-                    console.log("initVal ", val);
                     this.currAttrVal_l = val;
                 },
             },

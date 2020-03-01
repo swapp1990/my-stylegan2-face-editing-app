@@ -1,12 +1,13 @@
 <template>
 <div class="wrapper">
+    <socket-comp ref="socketComp" @gotImage="displayImage"></socket-comp>
   <div class="player__container">
     <div class="player__body">
         <div class="body__title">
 
         </div>
         <div class="body__box">
-            <div class="imgParent" v-bind:style="{ 'background-image': faceImageBG}">
+            <div class="imgParent" v-bind:style="{ 'background-image': imgUrl}">
                 <div class="imgOverlayMenu">
                     <div></div>
                     <div>
@@ -23,6 +24,14 @@
                     </li>
                 </ul>
             </div>
+        </div>
+        <div class="body__tabs">
+            <ul class="list list--buttons">
+                <li v-for="attrTab in attributeTabs">
+                    <button class="tab__btn" :class="isAttrTabSelected(attrTab)" @click="changeSelectedTab(attrTab)">
+                    <i class='fas' v-bind:class="attrTab.icon"></i></button>
+                </li>
+            </ul>
         </div>
       
       <div class="body__info">
@@ -63,16 +72,18 @@
 import logoHeading from '@/components/LogoHeading.vue';
 import neubox from '@/components/NeuBox.vue';
 import rangeslider from '@/components/RangeSlider.vue';
+import socketComp from '@/components/Socket.vue';
     export default {
         name: "homenew",
         components: {
             logoHeading: logoHeading,
             neubox: neubox,
-            rangeslider: rangeslider
+            rangeslider: rangeslider,
+            socketComp: socketComp
         },
         data() {
             return {
-                faceImageBG: "",
+                imgUrl: "",
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna'},
@@ -111,7 +122,10 @@ import rangeslider from '@/components/RangeSlider.vue';
         methods: {
             loadDefaultImg() {
                 var img = 'url("./resImg.jpg")';
-                this.faceImageBG = img;
+                this.imgUrl = img;
+            },
+            displayImage(imgData) {
+                this.imgUrl = imgData.imgUrl;
             },
             getTabClass(attrTab) {
                 if(attrTab.name === this.selectedAttrTab) {
@@ -125,10 +139,6 @@ import rangeslider from '@/components/RangeSlider.vue';
             reset() {
 
             },
-            selectTab(attrTab) {
-                this.selectedAttrTab = attrTab.name;
-                // this.calculateFilteredAttr();
-            },
             calculateFilteredAttr() {
                 this.filteredAttr = this.attributes.filter(a => {
                     return a.tabTag === this.selectedAttrTab;
@@ -141,14 +151,26 @@ import rangeslider from '@/components/RangeSlider.vue';
                 }
                 return ""
             },
+            isAttrTabSelected(attrTab) {
+                if(attrTab.name === this.selectedAttrTab) {
+                    return "isSelected";
+                }
+                return ""
+            },
             changeSelectedAttr(attr) {
                 this.currSelectedAttr = attr;
                 this.currAttrVal = Number(this.currSelectedAttr.coeff);
+            },
+           changeSelectedTab(attrTab) {
+                this.selectedAttrTab = attrTab.name;
+                this.calculateFilteredAttr();
             },
             onCoeffChange(coeff) {
                 // console.log("coeff ", coeff);
                 this.currSelectedAttr.coeff = coeff;
                 this.currAttrVal = Number(coeff);
+                let params = this.currSelectedAttr;
+                this.$refs.socketComp.sendEditAction("changeCoeff", params);
             }
         }
     }
@@ -208,11 +230,12 @@ margin: 0 auto;
 .body__box {
     @extend %neuBox;
     max-width: 640px;
-    height: 600px;
+    height: 620px;
     @media only screen and (max-width: 640px) {
         margin-left: 10px;
         margin-right: 10px;
     }
+    z-index: 3;
 }
 .imgParent {
     position: relative;
@@ -252,7 +275,11 @@ margin: 0 auto;
     display: flex;
     justify-content: center;
 }
-
+.body__tabs {
+    display: flex;
+    height: 100px;
+    z-index: 1;
+}
 %neuBtn {
     color: inherit;
     position: relative;
@@ -286,6 +313,23 @@ margin: 0 auto;
     //     color: darken(rgba($color-red, .95), 8%);
     //     box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
     // }
+    &.isSelected {
+        color: darken(rgba($color-red, .95), 8%);
+        box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
+    }
+}
+.tab__btn {
+    @extend %neuBtn;
+    background-color: #f5f6f7;
+    position: relative;
+    top: -10px;
+    width: 60px;
+    height: 80px;
+    padding: 0;
+    &:hover {
+        color: darken(rgba($color-red, .95), 8%);
+        opacity: 1;
+    }
     &.isSelected {
         color: darken(rgba($color-red, .95), 8%);
         box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;

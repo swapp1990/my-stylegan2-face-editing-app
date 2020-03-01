@@ -42,6 +42,14 @@ def connect():
         msg = {'id': 0, 'action': 'initApp', 'params': {}}
         workerCls.broadcast_event(EasyDict(msg))
 
+@socketio.on('disconnect')
+def disconnect():
+    print("disconnect")
+    print(request.sid)
+    global users
+    users = [x for x in users if x['sid'] not in [request.sid]]
+    print("users ", len(users))
+
 @socketio.on('set-session')
 def set_session(data):
     print(data, request.sid)
