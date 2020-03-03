@@ -1,21 +1,25 @@
 <template>
 <div class="wrapper">
-    <socket-comp ref="socketComp" @gotImage="displayImage"></socket-comp>
-  <div class="player__container">
-    <div class="player__body">
-        <div class="body__title">
-
-        </div>
-        <div class="body__box">
-            <div class="imgParent" v-bind:style="{ 'background-image': imgUrl}">
-                <div class="imgOverlayMenu">
+    <div class="main-head"><logoHeading></logoHeading></div>
+    <!-- <nav class="main-nav">
+        <ul>
+            <li><a href="">Nav 1</a></li>
+            <li><a href="">Nav 2</a></li>
+            <li><a href="">Nav 3</a></li>
+        </ul>
+    </nav> -->
+    <div class="main-panel">
+        <div class="panel__box">
+            <div class="img-container" v-bind:style="{ 'background-image': imgUrl}">
+                <div class="img-overlay-menu">
                     <div></div>
-                    <div>
-                        <rangeslider id="menuSlider" :initVal="currAttrVal" :min="-15" :max="15" @changedAttr="onCoeffChange"></rangeslider>
+                    <div></div>
+                    <div class="menu-btm">
+                        <rangeslider class="menu-slider" id="menuSlider" :initVal="currAttrVal" :min="-15" :max="15" @changedAttr="onCoeffChange"></rangeslider>
                     </div>
                 </div>
             </div>
-            <div class="imgEdit__box">
+            <div class="attrs-selector">
                 <ul class="list list--buttons">
                     <li v-for="attr in filteredAttr">
                         <button class="list__btn" :class="isAttrSelected(attr)" @click="changeSelectedAttr(attr)">
@@ -25,13 +29,28 @@
                 </ul>
             </div>
         </div>
-        <div class="body__tabs">
+    </div> 
+    <div class="main-tabs">
+        <div class="tabs__box">
             <ul class="list list--buttons">
                 <li v-for="attrTab in attributeTabs">
                     <button class="tab__btn" :class="isAttrTabSelected(attrTab)" @click="changeSelectedTab(attrTab)">
                     <i class='fas' v-bind:class="attrTab.icon"></i></button>
                 </li>
             </ul>
+        </div>
+    </div>
+    <!-- <aside class="side">Sidebar</aside> -->
+    <!-- <div class="ad">Advertising</div> -->
+    <footer class="main-footer">The footer</footer>
+</div>
+    
+    <!-- <socket-comp ref="socketComp" @gotImage="displayImage"></socket-comp>
+  <div class="player__container">
+    <div class="player__body">
+
+        <div class="body__tabs">
+            
         </div>
       
       <div class="body__info">
@@ -49,23 +68,8 @@
           <li><a href="#" class="list__link"><i class="fa fa-play"></i></a></li>
 
           <li><a href="#" class="list__link"><i class="fa fa-step-forward"></i></a></li>
-        </ul>
-      </div>
-    </div>
+    <div class="main-head"><logoHeading></logoHeading></div> -->
 
-    <div class="player__footer">
-      <ul class="list list--footer">
-        <li><a href="#" class="list__link"><i class="fa fa-heart-o"></i></a></li>
-        
-        <li><a href="#" class="list__link"><i class="fa fa-random"></i></a></li>
-        
-        <li><a href="#" class="list__link"><i class="fa fa-undo"></i></a></li>
-        
-        <li><a href="#" class="list__link"><i class="fa fa-ellipsis-h"></i></a></li>
-      </ul>
-    </div>
-  </div>
-</div>
 </template>
 
 <script>
@@ -139,6 +143,9 @@ import socketComp from '@/components/Socket.vue';
             reset() {
 
             },
+            showGallery() {
+                this.$router.push('gallery');
+            },
             calculateFilteredAttr() {
                 this.filteredAttr = this.attributes.filter(a => {
                     return a.tabTag === this.selectedAttrTab;
@@ -171,114 +178,23 @@ import socketComp from '@/components/Socket.vue';
                 this.currAttrVal = Number(coeff);
                 let params = this.currSelectedAttr;
                 this.$refs.socketComp.sendEditAction("changeCoeff", params);
-            }
+            },
+            saveLatent() {
+                this.$refs.socketComp.sendEditAction("saveLatent", {});
+            },
         }
     }
 </script>
 
 <style lang="scss" scoped>
-// Functions
-@function remy($value, $base: 16px) {
-  @return ($value / $base) * 1rem;
-}
-
-// Mixins
-@mixin transition($prop: all, $duration: .25s, $timing: cubic-bezier(.4, 0, 1, 1)) {
-  transition: $prop $duration $timing;
-}
-
-// Colors
-$color-black: #212121;
-$color-blue: #03a9f4;
-$color-red: #d30320;
-$color-bg: #f5f6f7;
-
-
-// Variables
-$boxshadow-0: 0 1px 3px -5px rgba(0, 0, 0, .13),
-0 1px 3px -10px rgba(0, 0, 0, .23);
-$boxshadow-1: 0 3px 6px -5px rgba(0, 0, 0, .16),
-0 3px 6px -10px rgba(0, 0, 0, .23);
-$boxshadow-2: 0 10px 20px -5px rgba(0, 0, 0, .19),
-0 6px 6px -10px rgba(0, 0, 0, .23);
-$boxshadow-3: 0 14px 28px -5px rgba(0, 0, 0, .25),
-0 10px 10px -10px rgba(0, 0, 0, .22);
-$radius: remy(4px);
-
 $white: #ffffff;
+$color-red: #d30320;
 $dark: rgba(52, 55, 61, 0.6);
-
-.player__container {
-    margin: 0 auto;
-    max-width: 100%;
-    background: #E0E5EC;
-    border-radius: $radius;
-    box-shadow: $boxshadow-2;
-
-    //Center the box to the screen
-    // display: flex;
-    // align-items: center;
-    // justify-content: center;
-    justify-content: space-between;
-}
 %neuBox {
-background-color: #f5f6f7;
-border-radius: $radius;
-box-shadow: -4px -2px 4px 0px  $white, 4px 2px 6px 0px $dark;
-margin: 0 auto;
-}
-.body__box {
-    @extend %neuBox;
-    max-width: 640px;
-    height: 620px;
-    @media only screen and (max-width: 640px) {
-        margin-left: 10px;
-        margin-right: 10px;
-    }
-    z-index: 3;
-}
-.imgParent {
-    position: relative;
+    background-color: #f5f6f7;
+    border-radius: 3px;
+    box-shadow: -4px -2px 4px 0px  $white, 4px 2px 6px 0px $dark;
     margin: 0 auto;
-    @media only screen and (max-width: 640px) {
-        width: 95%;
-    }
-    margin-bottom: 5px;
-    width: 100%;
-    height: 512px;
-    background-repeat: no-repeat;
-    background-size: auto;
-    background-position: center;
-    z-index: 1;
-}
-.imgOverlayMenu {
-    display: grid;
-    height: inherit;
-    grid-template-rows: 5fr 1fr;
-    grid-template-columns: auto;
-    align-items: end;
-}
-.body__title {
-    @extend %neuBox;
-    max-width: 640px;
-    height: 100px;
-    @media only screen and (max-width: 640px) {
-        height: 10px;
-    }
-}
-.imgEdit__box {
-    @extend %neuBox;
-    z-index: 2;
-    max-width: 640px;
-    height: 90px;
-    //content
-    display: flex;
-    justify-content: center;
-}
-.body__tabs {
-    display: flex;
-    height: 100px;
-    z-index: 1;
 }
 %neuBtn {
     color: inherit;
@@ -286,247 +202,146 @@ margin: 0 auto;
     background: inherit;
     outline: none;
     border: none;
-    border-radius: $radius;
+    border-radius: 5px;
     box-shadow: -4px -2px 4px 0px  $white, 4px 2px 6px 0px $dark;
 }
-.list {
-    margin: 0;
-    padding: 0;
-    list-style-type: none;
-    &.list--buttons {
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        flex-grow: 1;
-        flex-basis: 20%;
+.wrapper {
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    @media only screen and (max-width: 640px) {
+        grid-gap: 5px;
+    }
+    grid-gap: 2px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 0.2fr 2.0fr 1.2fr;
+    @media only screen and (max-width: 640px) {
+        grid-template-rows: 0.2fr 4fr 1fr;
     }
 }
-.list__btn {
-    @extend %neuBtn;
-    width: 40px;
-    height: 40px;
-    &:hover {
-        color: darken(rgba($color-red, .95), 8%);
-        opacity: 1;
+.main-head {
+    grid-column: 1/6;
+    grid-row: 1;
+    justify-self: center;
+}
+.main-panel {
+  grid-column: 1 / 6;
+  grid-row: 2;
+  .panel__box {
+        @extend %neuBox;
+        max-width: 600px;
+        height: 60vh;
+        @media only screen and (max-width: 640px) {
+            margin: 0 auto;
+            height: 82vh;
+        }
+        .img-container {
+            margin: 0 auto;
+            margin-bottom: 5px;
+            width: 100%;
+            height: 50vh;
+            background-repeat: no-repeat;
+            background-size: auto;
+            background-position: center;
+            z-index: 1;
+            @media only screen and (max-width: 640px) {
+                width: 95%;
+                height: 70vh;
+            }
+            .img-overlay-menu {
+                padding-top: 10px;
+                padding-bottom: 10px;
+                display: grid;
+                height: 50vh;
+                @media only screen and (max-width: 640px) {
+                    height: 70vh;
+                }
+                grid-template-rows: 1fr 5fr 0.3fr;
+                grid-template-columns: auto;
+                .menu-btm {
+                    align-self: end;
+                    .menu-slider {
+                        width: 100%;
+                    }
+                }
+            }
+        }
+        .attrs-selector {
+            height: 10vh;
+            margin: 0 auto;
+            .list {
+                margin-top: 20px;
+                padding: 0;
+                list-style-type: none;
+                &.list--buttons {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-around;
+                    flex-grow: 1;
+                    flex-basis: 20%;
+                    .list__btn {
+                        @extend %neuBtn;
+                        width: 50px;
+                        height: 50px;
+                        @media only screen and (max-width: 640px) {
+                            width: 40px;
+                            height: 40px;
+                        }
+                        &:hover {
+                            color: darken(rgba($color-red, .95), 8%);
+                            opacity: 1;
+                        }
+                        &.isSelected {
+                            color: darken(rgba($color-red, .95), 8%);
+                            box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
+                        }
+                    }
+                }
+            }
+        }
+  }
+}
+.main-tabs {
+    grid-column: 1 / 6;
+    grid-row: 3;
+    .tabs__box {
+        @extend %neuBox;
+        height: 50px;
+        padding-top: 10px;
+        @media only screen and (max-width: 640px) {
+            padding-top: 0px;
+            height: 30px;
+        }
+        max-width: 600px;
+        .list {
+            margin-top: 0;
+            padding: 0;
+            list-style-type: none;
+            &.list--buttons {
+                display: flex;
+                align-items: center;
+                justify-content: space-around;
+                flex-grow: 1;
+                flex-basis: 20%;
+                .tab__btn {
+                    @extend %neuBtn;
+                    width: 50px;
+                    height: 30px;
+                    &:hover {
+                        color: darken(rgba($color-red, .95), 8%);
+                        opacity: 1;
+                    }
+                    &.isSelected {
+                        color: darken(rgba($color-red, .95), 8%);
+                        box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
+                    }
+                }
+            }
+        }
     }
-    // &:focus {
-    //     color: darken(rgba($color-red, .95), 8%);
-    //     box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
-    // }
-    &.isSelected {
-        color: darken(rgba($color-red, .95), 8%);
-        box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
-    }
 }
-.tab__btn {
-    @extend %neuBtn;
-    background-color: #f5f6f7;
-    position: relative;
-    top: -10px;
-    width: 60px;
-    height: 80px;
-    padding: 0;
-    &:hover {
-        color: darken(rgba($color-red, .95), 8%);
-        opacity: 1;
-    }
-    &.isSelected {
-        color: darken(rgba($color-red, .95), 8%);
-        box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
-    }
+.main-footer {
+    grid-column: 1 / 6;
+    grid-row: 4;
 }
-
-.body__cover {
-  position: relative;
-}
-
-.body__cover img {
-  max-width: 100%;
-  border-radius: $radius;
-}
-
-.body__buttons,
-.body__info,
-.player__footer {
-  padding-right: 2rem;
-  padding-left: 2rem;
-}
-
-.list--cover,
-.list--footer {
-  justify-content: space-between;
-}
-
-.list--header .list__link,
-.list--footer .list__link {
-  color: #888;
-}
-
-.list--cover {
-  position: absolute;
-  top: .5rem;
-  width: 100%;
-
-  li:first-of-type {
-    margin-left: .75rem;
-  }
-
-  li:last-of-type {
-    margin-right: .75rem;
-  }
-
-  a {
-    font-size: 1.15rem;
-    color: #fff;
-  }
-}
-
-.range {
-  position: relative;
-  top: -1.5rem;
-  right: 0;
-  left: 0;
-  margin: auto;
-  background: rgba(#fff, .95);
-  width: 80%;
-  height: remy(2px);
-  border-radius: $radius;
-  cursor: pointer;
-
-  &:before,
-  &:after {
-    content: "";
-    position: absolute;
-    cursor: pointer;
-  }
-
-  &:before {
-    width: 3rem;
-    height: 100%;
-    background: linear-gradient(to right, rgba($color-red, .5), rgba($color-red, .85));
-    border-radius: $radius;
-    overflow: hidden;
-  }
-
-  &:after {
-    top: remy(-6px);
-    left: 3rem;
-    z-index: 3;
-    width: remy(14px);
-    height: remy(14px);
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 3px rgba(0, 0, 0, .15), 0 2px 4px rgba(0, 0, 0, .15);
-    
-    @include transition;
-  }
-  
-  &:focus,
-  &:hover {
-    &:after {
-      background: rgba($color-red, .95);
-    }
-  }
-}
-
-.body__info {
-  padding-top: 1.5rem;
-  padding-bottom: 1.25rem;
-  text-align: center;
-}
-
-.info__album,
-.info__song {
-  margin-bottom: .5rem;
-}
-
-.info__artist,
-.info__album {
-  font-size: .75rem;
-  font-weight: 300;
-  color: #666;
-}
-
-.info__song {
-  font-size: 1.15rem;
-  font-weight: 400;
-  color: $color-red;
-}
-
-.body__buttons {
-  padding-bottom: 2rem;
-}
-
-.body__buttons {
-  padding-top: 1rem;
-}
-
-
-// .list--buttons li:nth-of-type(n+2) {
-//   margin-left: 1.25rem;
-// }
-
-// .list--buttons a {
-//   padding-top: .45rem;
-//   padding-right: .75rem;
-//   padding-bottom: .45rem;
-//   padding-left: .75rem;
-//   font-size: 1rem;
-//   border-radius: 50%;
-//   box-shadow: 0 3px 6px rgba(33,33,33,.1), 0 3px 12px rgba(33,33,33,.15);
-
-//   &:focus,
-//   &:hover {
-//     color: darken(rgba($color-red, .95), 8%);
-//     opacity: 1;
-//     box-shadow: 0 6px 9px rgba(33,33,33,.1), 0 6px 16px rgba(33,33,33,.15);
-//   }
-// }
-
-// .list--buttons li:nth-of-type(2) a {
-//   padding-top: .82rem;
-//   padding-right: 1rem;
-//   padding-bottom: .82rem;
-//   padding-left: 1.19rem;
-//   margin-left: .5rem;
-//   font-size: 1.25rem;
-//   color: rgba($color-red, .95);
-// }
-
-// .list--buttons li:first-of-type a,
-// .list--buttons li:last-of-type a {
-//   font-size: .95rem;
-//   color: #212121;
-//   opacity: .5;
-
-//   &:focus,
-//   &:hover {
-//     color: $color-red;
-//     opacity: .75;
-//   }
-// }
-
-// .list__link {
-//   @include transition;
-
-//   &:focus,
-//   &:hover {
-//     color: $color-red;
-//   }
-// }
-
-.player__footer {
-  padding-top: 1rem;
-  padding-bottom: 2rem;
-}
-
-.list--footer a {
-  opacity: .5;
-
-  &:focus,
-  &:hover {
-    opacity: .9;
-  }
-}
-
 </style>

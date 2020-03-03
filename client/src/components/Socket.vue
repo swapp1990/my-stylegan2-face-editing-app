@@ -16,7 +16,8 @@
                 connected: false,
                 socket: null,
                 logs: [],
-                username: "swapp"
+                username: "swapp",
+                galleryImgs: []
             }
         },
         methods: {
@@ -43,10 +44,15 @@
             login() {
                 this.socket.emit('set-session', {"user": this.username});
             },
+            getGalleryImgs() {
+                return this.galleryImgs;
+            },
             handleGeneralMsg(content) {
                 if(content.action) {
                     if(content.action == "sendImg") {
                         this.handleReceivedImg(content);
+                    } else if(content.action == "sendGallery") {
+                        this.handleReceivedGallery(content);
                     }
                 }
             },
@@ -62,6 +68,20 @@
                     if(imgUrl != null) {
                         this.$emit("gotImage", {'imgUrl': imgUrl});
                     }
+                }
+            },
+            handleReceivedGallery(content) {
+                if(content.tag === "gallery") {
+                    this.galleryImgs = [];
+                    content.gallery.forEach(gi => {
+                        let galleryImg = {};
+                        galleryImg.galleryIdx = gi.id;
+                        gi.mp_fig.axes.forEach(a => {
+                            var base64Data = a.images[0].data;
+                            galleryImg.png = base64Data;
+                        });
+                        this.galleryImgs.push(galleryImg);
+                    });
                 }
             },
             sendEditAction(actionName, params) {

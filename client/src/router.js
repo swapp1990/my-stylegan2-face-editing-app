@@ -4,6 +4,7 @@ import Router from 'vue-router';
 import FaceEditView from './views/FaceEditing_old.vue';
 import FaceEditingUI from './views/FaceEditingNiceUI.vue';
 import Home from './views/Home.vue';
+import Gallery from './views/Gallery.vue';
 import homenew from './views/Homenew.vue';
 import circleMenu from './views/CircularMenu.vue';
 
@@ -16,6 +17,10 @@ export default new Router({
     {
       path: '/',
       component: homenew
+    },
+    {
+      path: '/gallery',
+      component: Gallery
     }
   ],
 });

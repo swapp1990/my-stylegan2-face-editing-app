@@ -1,7 +1,13 @@
 <template>
 <div class="frame">
 	<div class="range">
+		<div class="p-1">
+			<button type="button" class="transBtn" @click="decCoeff()"><i class='fas fa-minus'></i></button>
+		</div>
 		<input type="range" :min="min" :max="max" step="0.25" v-model="currAttrVal_l" @change="attrChanged">
+		<div class="p-1">
+			<button type="button" class="transBtn" @click="incCoeff()"><i class='fas fa-plus'></i></button>
+		</div>
 	</div>
 </div>
 </template>
@@ -43,7 +49,15 @@
         methods: {
             attrChanged() {
                 this.$emit("changedAttr", this.currAttrVal_l);
-            }
+			},
+			incCoeff() {
+				this.currAttrVal_l += 0.25;
+				this.$emit("changedAttr", this.currAttrVal_l);
+			},
+			decCoeff() {
+				this.currAttrVal_l -= 0.25;
+				this.$emit("changedAttr", this.currAttrVal_l);
+			}
         }
     }
 </script>
@@ -61,13 +75,24 @@ $color-bg: #f5f6f7;
 .range {
 	background: rgba(#f5f6f7, 0.3);
 	height: 2rem;
-	width: 55%;
+	width: 70%;
 	border-radius: 5rem;
 	box-shadow: 1px 5px 5px rgba(black, 0.3);
 
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: space-between;
+}
+
+$color-red: #d30320;
+.transBtn {
+	border: none;
+	background: none;
+	outline: none;
+	&:hover {
+		outline: none;
+		// background: darken(rgba($color-red, .95), 8%);
+	}
 }
 
 input[type="range"] {
@@ -75,7 +100,6 @@ input[type="range"] {
 	width: 80%;
 	height: 100%;
 	background: transparent;
-    $color-red: #d30320;
 	&:focus {
 		outline: none;
 	}
