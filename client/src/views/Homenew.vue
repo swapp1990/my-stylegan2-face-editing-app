@@ -1,21 +1,22 @@
 <template>
+<div class="parent">
 <div class="wrapper">
+    <socket-comp ref="socketComp" @gotImage="displayImage"></socket-comp>
     <div class="main-head"><logoHeading></logoHeading></div>
-    <!-- <nav class="main-nav">
-        <ul>
-            <li><a href="">Nav 1</a></li>
-            <li><a href="">Nav 2</a></li>
-            <li><a href="">Nav 3</a></li>
-        </ul>
-    </nav> -->
     <div class="main-panel">
         <div class="panel__box">
             <div class="img-container" v-bind:style="{ 'background-image': imgUrl}">
                 <div class="img-overlay-menu">
-                    <div></div>
+                    <div class="menu-top">
+                        <button type="button" @click="saveLatent"><i class='fas fa-save icon'></i></button>
+                        <search-expand @onEnter="searchEnter"></search-expand>
+                        <button type="button" @click="showGallery"><i class='fas fa-archive icon'></i></button>
+                    </div>
                     <div></div>
                     <div class="menu-btm">
+                        <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
                         <rangeslider class="menu-slider" id="menuSlider" :initVal="currAttrVal" :min="-15" :max="15" @changedAttr="onCoeffChange"></rangeslider>
+                        <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
                     </div>
                 </div>
             </div>
@@ -40,36 +41,12 @@
             </ul>
         </div>
     </div>
-    <!-- <aside class="side">Sidebar</aside> -->
-    <!-- <div class="ad">Advertising</div> -->
-    <footer class="main-footer">The footer</footer>
+    <!-- <footer class="main-footer">The footer</footer> -->
 </div>
-    
-    <!-- <socket-comp ref="socketComp" @gotImage="displayImage"></socket-comp>
-  <div class="player__container">
-    <div class="player__body">
-
-        <div class="body__tabs">
-            
-        </div>
-      
-      <div class="body__info">
-        <div class="info__album">The Hunting Party</div>
-
-        <div class="info__song">Final Masquerade</div>
-
-        <div class="info__artist">Linkin Park</div>
-      </div>
-
-      <div class="body__buttons">
-        <ul class="list list--buttons">
-          <li><a href="#" class="list__link"><i class="fa fa-step-backward"></i></a></li>
-
-          <li><a href="#" class="list__link"><i class="fa fa-play"></i></a></li>
-
-          <li><a href="#" class="list__link"><i class="fa fa-step-forward"></i></a></li>
-    <div class="main-head"><logoHeading></logoHeading></div> -->
-
+<div class="main-gallery">
+    <fractal-grid :galleryImgs="galleryImgs"></fractal-grid>
+</div>
+</div>
 </template>
 
 <script>
@@ -77,13 +54,17 @@ import logoHeading from '@/components/LogoHeading.vue';
 import neubox from '@/components/NeuBox.vue';
 import rangeslider from '@/components/RangeSlider.vue';
 import socketComp from '@/components/Socket.vue';
+import searchExpand from '@/components/FancySearch.vue';
+import fractalGrid from '@/components/FractalGrid.vue';
     export default {
         name: "homenew",
         components: {
             logoHeading: logoHeading,
             neubox: neubox,
             rangeslider: rangeslider,
-            socketComp: socketComp
+            socketComp: socketComp,
+            searchExpand: searchExpand,
+            fractalGrid: fractalGrid
         },
         data() {
             return {
@@ -117,6 +98,7 @@ import socketComp from '@/components/Socket.vue';
                     {name: 'width', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-width'},
                 ],
                 currSelectedAttr: null,
+                galleryImgs: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
             }
         },
         mounted() {
@@ -182,6 +164,17 @@ import socketComp from '@/components/Socket.vue';
             saveLatent() {
                 this.$refs.socketComp.sendEditAction("saveLatent", {});
             },
+            randomize() {
+
+            },
+            searchEnter(val) {
+                // console.log(val);
+                // this.searchTxt = val;
+                this.searchImg()
+            },
+            searchImg() {
+                // this.sendEditAction("sendSearchedImages", {"text": this.searchTxt});
+            },
         }
     }
 </script>
@@ -205,12 +198,23 @@ $dark: rgba(52, 55, 61, 0.6);
     border-radius: 5px;
     box-shadow: -4px -2px 4px 0px  $white, 4px 2px 6px 0px $dark;
 }
+%overlayBtn {
+background: transparent;
+outline: none;
+border: none;
+cursor: pointer;
+&:hover {
+    color: darken(rgba($color-red, .95), 8%);
+    opacity: 1;
+}
+}
 .wrapper {
     display: grid;
     width: 100vw;
-    height: 100vh;
+    height: 80vh;
     @media only screen and (max-width: 640px) {
         grid-gap: 5px;
+        height: 100vh;
     }
     grid-gap: 2px;
     grid-template-columns: repeat(3, 1fr);
@@ -260,8 +264,31 @@ $dark: rgba(52, 55, 61, 0.6);
                 grid-template-columns: auto;
                 .menu-btm {
                     align-self: end;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
                     .menu-slider {
                         width: 100%;
+                    }
+                    button {
+                        @extend %overlayBtn;
+                    }
+                }
+                .menu-top {
+                    align-self: top;
+                    background: rgba(#f5f6f7, 0.3);
+                    height: 2.1rem;
+                    width: 100%;
+                    border-radius: 5rem;
+                    box-shadow: 1px 5px 5px rgba(black, 0.3);
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+
+                    button {
+                         @extend %overlayBtn;
                     }
                 }
             }
@@ -340,8 +367,10 @@ $dark: rgba(52, 55, 61, 0.6);
         }
     }
 }
+.main-gallery {
+}
 .main-footer {
     grid-column: 1 / 6;
-    grid-row: 4;
+    grid-row: 5;
 }
 </style>

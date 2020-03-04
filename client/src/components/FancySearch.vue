@@ -34,7 +34,8 @@ $dark: #00104B;
 $shadow-tl: -4px -2px 4px 0px;
 $shadow-br: 4px 2px 6px 0px;
 $white: #ffffff;
-$dark: #DFE4EA;
+$dark: rgb(234, 223, 234);
+$pink: rgb(216, 20, 223);
 $shadow: $shadow-tl $white, $shadow-br $dark;
 $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
     .search-box {
@@ -48,14 +49,14 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
             font-family: Raleway, sans-serif;
             font-size: 20px;
             font-weight: bold;
-            width: 50px;
-            height: 50px;
+            width: 30px;
+            height: 30px;
             padding: 5px 40px 5px 10px;
 		    border: none;
             box-sizing: border-box;
             border-radius: 10px;
             // transition: width 800ms cubic-bezier(0.5,-0.5,0.5,0.5) 600ms;
-            background: rgba($dark,.03);
+            background: rgba($pink,.03);
             // &:hover {
             //     background: rgba($dark,.03);
             // }
@@ -65,9 +66,12 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
                     color: rgba($dark,.03);
                 }
                 width: 300px;
+                @media only screen and (max-width: 640px) {
+                    width: 200px;
+                }
                 transition: width 800ms cubic-bezier(0.5, -0.5, 0.5, 1.5);
                 border-radius: 50px;
-                box-shadow: 2px 2px 2px 0px $dark inset, -2px -2px 2px 0px $white inset;
+                // box-shadow: 2px 2px 2px 0px $dark inset, -2px -2px 2px 0px $white inset;
             }
             &:not(:focus) {
                 transition: width 300ms cubic-bezier(0.5, -0.5, 0.5, 1.5);
@@ -78,7 +82,7 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
             position: absolute;
             pointer-events: none;
             right: 10px;
-            top: 15px;
+            top: 8px;
         }
     }
 </style>
