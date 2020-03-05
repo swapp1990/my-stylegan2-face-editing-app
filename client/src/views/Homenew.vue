@@ -1,51 +1,27 @@
 <template>
-<div class="parent">
 <div class="wrapper">
-    <socket-comp ref="socketComp" @gotImage="displayImage"></socket-comp>
-    <div class="main-head"><logoHeading></logoHeading></div>
-    <div class="main-panel">
-        <div class="panel__box">
-            <div class="img-container" v-bind:style="{ 'background-image': imgUrl}">
-                <div class="img-overlay-menu">
-                    <div class="menu-top">
-                        <button type="button" @click="saveLatent"><i class='fas fa-save icon'></i></button>
-                        <search-expand @onEnter="searchEnter"></search-expand>
-                        <button type="button" @click="showGallery"><i class='fas fa-archive icon'></i></button>
-                    </div>
-                    <div></div>
-                    <div class="menu-btm">
-                        <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
-                        <rangeslider class="menu-slider" id="menuSlider" :initVal="currAttrVal" :min="-15" :max="15" @changedAttr="onCoeffChange"></rangeslider>
-                        <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
-                    </div>
-                </div>
-            </div>
-            <div class="attrs-selector">
-                <ul class="list list--buttons">
-                    <li v-for="attr in filteredAttr">
-                        <button class="list__btn" :class="isAttrSelected(attr)" @click="changeSelectedAttr(attr)">
-                            <i :class="getIcon(attr.icon)"></i>
-                        </button>
-                    </li>
-                </ul>
+    <div class="wrapper-grid">
+        <div class="header">
+            <logoHeading></logoHeading>
+        </div>
+        <div class="side-menu-l">
+            <div class="panel-side left">
             </div>
         </div>
-    </div> 
-    <div class="main-tabs">
-        <div class="tabs__box">
-            <ul class="list list--buttons">
-                <li v-for="attrTab in attributeTabs">
-                    <button class="tab__btn" :class="isAttrTabSelected(attrTab)" @click="changeSelectedTab(attrTab)">
-                    <i class='fas' v-bind:class="attrTab.icon"></i></button>
-                </li>
-            </ul>
+        <div class="main-body">
+            <div class="panel__box">
+            </div>
         </div>
+        <div class="side-menu-r">
+            <div class="panel-side right">
+            </div>
+        </div>
+        <div class="btm-menu">
+            <div class="panel-btm">
+            </div>
+        </div>
+        <div class="footer">C</div>
     </div>
-    <!-- <footer class="main-footer">The footer</footer> -->
-</div>
-<div class="main-gallery">
-    <fractal-grid :galleryImgs="galleryImgs"></fractal-grid>
-</div>
 </div>
 </template>
 
@@ -165,7 +141,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 this.$refs.socketComp.sendEditAction("saveLatent", {});
             },
             randomize() {
-
+                this.$refs.socketComp.sendEditAction("randomize", {});
             },
             searchEnter(val) {
                 // console.log(val);
@@ -183,6 +159,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
 $white: #ffffff;
 $color-red: #d30320;
 $dark: rgba(52, 55, 61, 0.6);
+$max-body-w: 600px;
 %neuBox {
     background-color: #f5f6f7;
     border-radius: 3px;
@@ -199,178 +176,127 @@ $dark: rgba(52, 55, 61, 0.6);
     box-shadow: -4px -2px 4px 0px  $white, 4px 2px 6px 0px $dark;
 }
 %overlayBtn {
-background: transparent;
-outline: none;
-border: none;
-cursor: pointer;
-&:hover {
-    color: darken(rgba($color-red, .95), 8%);
-    opacity: 1;
+    background: transparent;
+    outline: none;
+    border: none;
+    cursor: pointer;
+    &:hover {
+        color: darken(rgba($color-red, .95), 8%);
+        opacity: 1;
+    }
 }
+%commonLayoutOptsMobile {
+    padding: 5px;
+    margin: 1px;
+    @media only screen and (max-width: 640px) {
+        padding: 5px;
+        margin: 1px;
+    }
 }
 .wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+.wrapper-grid {
+    width: 80vw;
+    height: 100vh;
     display: grid;
-    width: 100vw;
-    height: 80vh;
+    grid-gap: 0px;
+    grid-template-columns: 0.8fr 600px 0.8fr;
+    grid-template-rows: 0.1fr 0.6fr 0.2fr 0.1fr;
     @media only screen and (max-width: 640px) {
-        grid-gap: 5px;
-        height: 100vh;
+        grid-template-columns: 0.1fr 2.8fr 0.1fr;
+        grid-template-rows: 0.1fr 0.9fr 0.1fr 0.05fr;
     }
-    grid-gap: 2px;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 0.2fr 2.0fr 1.2fr;
-    @media only screen and (max-width: 640px) {
-        grid-template-rows: 0.2fr 4fr 1fr;
-    }
+    grid-template-areas:
+        "header header header"
+        "sml mb smr"
+        "bm bm bm"
+        "footer footer footer";
+    // @media only screen and (max-width: 640px) {
+    //     grid-template-columns: 1fr;
+    //     grid-gap: 2px;
+    //     width: 100vw;
+    //     grid-template-areas:
+    //         "header"
+    //         "mb"
+    //         "bm"
+    //         "footer";
+    // }
+    // grid-template-columns: repeat(4, [col] 20vh ) ;
+    // grid-template-rows: repeat(2, [row] auto  );
+    background-color: #444;
+    color: #444;
 }
-.main-head {
-    grid-column: 1/6;
-    grid-row: 1;
-    justify-self: center;
+.header {
+    @extend %commonLayoutOptsMobile;
+    background-color: #fff;
+    grid-area: header;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.main-panel {
-  grid-column: 1 / 6;
-  grid-row: 2;
-  .panel__box {
+.side-menu-l {
+    @extend %commonLayoutOptsMobile;
+    background-color: #fff;
+    grid-area: sml;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.main-body {
+    @extend %commonLayoutOptsMobile;
+    background-color: #fff;
+    grid-area: mb;
+    border-radius: 5px;
+    .panel__box {
         @extend %neuBox;
-        max-width: 600px;
-        height: 60vh;
-        @media only screen and (max-width: 640px) {
-            margin: 0 auto;
-            height: 82vh;
-        }
-        .img-container {
-            margin: 0 auto;
-            margin-bottom: 5px;
-            width: 100%;
-            height: 50vh;
-            background-repeat: no-repeat;
-            background-size: auto;
-            background-position: center;
-            z-index: 1;
-            @media only screen and (max-width: 640px) {
-                width: 95%;
-                height: 70vh;
-            }
-            .img-overlay-menu {
-                padding-top: 10px;
-                padding-bottom: 10px;
-                display: grid;
-                height: 50vh;
-                @media only screen and (max-width: 640px) {
-                    height: 70vh;
-                }
-                grid-template-rows: 1fr 5fr 0.3fr;
-                grid-template-columns: auto;
-                .menu-btm {
-                    align-self: end;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    .menu-slider {
-                        width: 100%;
-                    }
-                    button {
-                        @extend %overlayBtn;
-                    }
-                }
-                .menu-top {
-                    align-self: top;
-                    background: rgba(#f5f6f7, 0.3);
-                    height: 2.1rem;
-                    width: 100%;
-                    border-radius: 5rem;
-                    box-shadow: 1px 5px 5px rgba(black, 0.3);
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-
-                    button {
-                         @extend %overlayBtn;
-                    }
-                }
-            }
-        }
-        .attrs-selector {
-            height: 10vh;
-            margin: 0 auto;
-            .list {
-                margin-top: 20px;
-                padding: 0;
-                list-style-type: none;
-                &.list--buttons {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-around;
-                    flex-grow: 1;
-                    flex-basis: 20%;
-                    .list__btn {
-                        @extend %neuBtn;
-                        width: 50px;
-                        height: 50px;
-                        @media only screen and (max-width: 640px) {
-                            width: 40px;
-                            height: 40px;
-                        }
-                        &:hover {
-                            color: darken(rgba($color-red, .95), 8%);
-                            opacity: 1;
-                        }
-                        &.isSelected {
-                            color: darken(rgba($color-red, .95), 8%);
-                            box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
-                        }
-                    }
-                }
-            }
-        }
-  }
-}
-.main-tabs {
-    grid-column: 1 / 6;
-    grid-row: 3;
-    .tabs__box {
-        @extend %neuBox;
-        height: 50px;
-        padding-top: 10px;
-        @media only screen and (max-width: 640px) {
-            padding-top: 0px;
-            height: 30px;
-        }
-        max-width: 600px;
-        .list {
-            margin-top: 0;
-            padding: 0;
-            list-style-type: none;
-            &.list--buttons {
-                display: flex;
-                align-items: center;
-                justify-content: space-around;
-                flex-grow: 1;
-                flex-basis: 20%;
-                .tab__btn {
-                    @extend %neuBtn;
-                    width: 50px;
-                    height: 30px;
-                    &:hover {
-                        color: darken(rgba($color-red, .95), 8%);
-                        opacity: 1;
-                    }
-                    &.isSelected {
-                        color: darken(rgba($color-red, .95), 8%);
-                        box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
-                    }
-                }
-            }
-        }
+        width: 100%;
+        height: 100%;
+        max-width: $max-body-w;
     }
 }
-.main-gallery {
+.side-menu-r {
+    @extend %commonLayoutOptsMobile;
+    background-color: #fff;
+    grid-area: smr;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
 }
-.main-footer {
-    grid-column: 1 / 6;
-    grid-row: 5;
+.panel-side {
+    @extend %neuBox;
+    width: 100%;
+    height: 70%;
+    max-width: 200px;
+    &.left {
+        margin-right: 0;
+    }
+    &.right {
+        margin-left: 0;
+    }
+}
+.btm-menu {
+    @extend %commonLayoutOptsMobile;
+    background-color: #fff;
+    grid-area: bm;
+    border-radius: 5px;
+}
+.panel-btm {
+    @extend %neuBox;
+    width: 100%;
+    height: 50%;
+    max-width: $max-body-w;
+}
+.footer {
+    @extend %commonLayoutOptsMobile;
+    background-color: #fff;
+    grid-area: footer;
+    border-radius: 5px;
 }
 </style>

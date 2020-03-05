@@ -1,5 +1,7 @@
 <template>
+<div class="wrapper">
     <h3> Beautiful Fake Faces</h3>
+</div>
 </template>
 
 <script>
@@ -9,17 +11,21 @@
 </script>
 
 <style lang="scss" scoped>
+.wrapper {
+
+}
 h3 {
   /* margin: 20px; */
+  padding: 0px;
   font-family: "Paytone One";
   color: #202020;
   text-transform: uppercase;
   letter-spacing: -2px;
 
   display: block;
-  margin: 11px 0 17px 0;
-  font-size: 60px;
-  line-height: 60px;
+//   margin: 11px 0 17px 0;
+//   font-size: 60px;
+//   line-height: 60px;
   color: #e9c9a9;
   text-shadow: 0 12px 8.896px #c4b59d,0 -3px 1px #fff;
   letter-spacing: -4px;
