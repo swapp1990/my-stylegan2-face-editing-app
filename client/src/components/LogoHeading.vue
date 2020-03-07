@@ -24,7 +24,7 @@ h3 {
 
   display: block;
 //   margin: 11px 0 17px 0;
-//   font-size: 60px;
+  font-size: 60px;
 //   line-height: 60px;
   color: #e9c9a9;
   text-shadow: 0 12px 8.896px #c4b59d,0 -3px 1px #fff;

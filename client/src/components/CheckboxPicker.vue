@@ -1,7 +1,9 @@
 <template>
 <div class="pick-wrapper">
   <ul class="ks-cboxtags">
-    <li v-for="val in values"><input type="checkbox" :id="val.id" v-model='val.checked' @change="changeVals()"><label :for="val.id">{{val.id}}</label></li>
+    <li v-for="val in values"><input type="checkbox" :id="val.id" v-model='val.checked' @change="changeVals()">
+        <label :for="val.id">{{val.id}}</label>
+    </li>
   </ul>
 </div>
 </template>
@@ -37,6 +39,11 @@
             },
             changeVals() {
                 this.$emit('checked', this.values);
+            },
+            clickOnLabel(val) {
+                console.log("click ", val);
+                // val.checked = !val.checked;
+                this.$emit('checked', this.values);
             }
         }
     }
@@ -56,6 +63,9 @@
 ul.ks-cboxtags {
     list-style: none;
     padding: 5px;
+    @media only screen and (max-width: 640px) {
+        padding: 0px;
+    }
 }
 ul.ks-cboxtags li{
   display: inline;
@@ -68,6 +78,9 @@ ul.ks-cboxtags li label{
     border-radius: 25px;
     white-space: nowrap;
     margin: 1px 0px;
+    @media only screen and (max-width: 640px) {
+        margin: 0;
+    }
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -79,6 +92,9 @@ ul.ks-cboxtags li label{
 
 ul.ks-cboxtags li label {
     padding: 2px 6px;
+    @media only screen and (max-width: 640px) {
+        padding: 0;
+    }
     cursor: pointer;
 }
 
@@ -92,6 +108,9 @@ ul.ks-cboxtags li label::before {
     font-weight: 900;
     font-size: 10px;
     padding: 1px 3px 1px 1px;
+    @media only screen and (max-width: 640px) {
+        padding: 0;
+    }
     content: "\f067";
     transition: transform .3s ease-in-out;
 }

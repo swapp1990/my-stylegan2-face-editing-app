@@ -14,8 +14,12 @@
         props: ["mixImgs"],
         methods: {
             getImgData(i) {
-                let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
-                return base64Png;
+                if(i.png) {
+                    let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
+                    return base64Png;
+                } else {
+                    return "https://swap-samples.s3-us-west-2.amazonaws.com/resImg.jpg";
+                }
             },
             setFocus(img) {
                 this.$emit('onMiximgClick', img);
@@ -33,7 +37,7 @@ $shadow: $shadow-tl $white, $shadow-br $dark;
 $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
 
 .parent {
-    overflow-y: scroll;
+    // overflow-y: scroll;
     height: 100%;
     .gallery {
         display: grid;

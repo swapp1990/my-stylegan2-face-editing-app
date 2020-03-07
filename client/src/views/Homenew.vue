@@ -6,10 +6,17 @@
         </div>
         <div class="side-menu-l">
             <div class="panel-side left">
+                <div class="item1 thinScroll">
+                    <checkbox-picker :initMax="5" v-on:checked="onMixLayerPicked"></checkbox-picker>
+                </div>
+                <div class="item2 thinScroll">
+                    <scroll-gallery :mixImgs="galleryMixImgs" @onMiximgClick="onMiximgClick"></scroll-gallery>
+                </div>
             </div>
         </div>
         <div class="main-body">
             <div class="panel__box">
+                <img-container ref="imgCont"></img-container>
             </div>
         </div>
         <div class="side-menu-r">
@@ -18,6 +25,12 @@
         </div>
         <div class="btm-menu">
             <div class="panel-btm">
+                <ul class="list list--buttons">
+                    <li v-for="attrTab in attributeTabs">
+                        <button class="tab__btn" :class="isAttrTabSelected(attrTab)" @click="changeSelectedTab(attrTab)">
+                        <i class='fas' v-bind:class="attrTab.icon"></i></button>
+                    </li>
+                </ul>
             </div>
         </div>
         <div class="footer">C</div>
@@ -26,21 +39,27 @@
 </template>
 
 <script>
+import imgContainer from '@/components/MainImageContainer.vue';
 import logoHeading from '@/components/LogoHeading.vue';
 import neubox from '@/components/NeuBox.vue';
 import rangeslider from '@/components/RangeSlider.vue';
 import socketComp from '@/components/Socket.vue';
 import searchExpand from '@/components/FancySearch.vue';
 import fractalGrid from '@/components/FractalGrid.vue';
+import scrollGallery from '@/components/VerticalScrollImg.vue';
+import checkboxPicker from '@/components/CheckboxPicker.vue';
     export default {
         name: "homenew",
         components: {
+            imgContainer: imgContainer,
             logoHeading: logoHeading,
             neubox: neubox,
             rangeslider: rangeslider,
             socketComp: socketComp,
             searchExpand: searchExpand,
-            fractalGrid: fractalGrid
+            fractalGrid: fractalGrid,
+            scrollGallery: scrollGallery,
+            checkboxPicker: checkboxPicker,
         },
         data() {
             return {
@@ -75,6 +94,9 @@ import fractalGrid from '@/components/FractalGrid.vue';
                 ],
                 currSelectedAttr: null,
                 galleryImgs: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+                galleryMixImgs: ["1", "2", "3", "4", "5"],
+                layersMixMap: [],
+                selectedImgIdx: 0
             }
         },
         mounted() {
@@ -128,7 +150,8 @@ import fractalGrid from '@/components/FractalGrid.vue';
             },
            changeSelectedTab(attrTab) {
                 this.selectedAttrTab = attrTab.name;
-                this.calculateFilteredAttr();
+                // this.calculateFilteredAttr();
+                this.$refs.imgCont.calculateFilteredAttr(this.selectedAttrTab);
             },
             onCoeffChange(coeff) {
                 // console.log("coeff ", coeff);
@@ -151,13 +174,28 @@ import fractalGrid from '@/components/FractalGrid.vue';
             searchImg() {
                 // this.sendEditAction("sendSearchedImages", {"text": this.searchTxt});
             },
+            onMiximgClick(imgIdx) {
+                this.selectedImgIdx = imgIdx;
+                // let params = {"styleImgIdx": imgIdx, "layersMixMap": this.layersMixMap};
+                // this.sendEditAction("mixStyleImg", params);
+            },
+            onMixLayerPicked(vals) {
+                this.layersMixMap = vals;
+                let params = {"styleImgIdx": this.selectedImgIdx, "layersMixMap": this.layersMixMap};
+                // this.sendEditAction("mixStyleImg", params);
+            },
         }
     }
 </script>
 
 <style lang="scss" scoped>
+html,
+body {
+width: 100vw;
+height: 100vh;
+}
 $white: #ffffff;
-$color-red: #d30320;
+$red: #d30320;
 $dark: rgba(52, 55, 61, 0.6);
 $max-body-w: 600px;
 %neuBox {
@@ -181,7 +219,7 @@ $max-body-w: 600px;
     border: none;
     cursor: pointer;
     &:hover {
-        color: darken(rgba($color-red, .95), 8%);
+        color: darken(rgba($red, .95), 8%);
         opacity: 1;
     }
 }
@@ -192,6 +230,21 @@ $max-body-w: 600px;
         padding: 5px;
         margin: 1px;
     }
+}
+.thinScroll::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+	border-radius: 10px;
+	background-color: #F5F5F5;
+}
+.thinScroll::-webkit-scrollbar
+{
+	width: 5px;
+	background-color: #F5F5F5;
+}
+.thinScroll::-webkit-scrollbar-thumb
+{
+	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3);
+	background-color: rgba($red, .55);
 }
 .wrapper {
     display: flex;
@@ -205,16 +258,23 @@ $max-body-w: 600px;
     display: grid;
     grid-gap: 0px;
     grid-template-columns: 0.8fr 600px 0.8fr;
-    grid-template-rows: 0.1fr 0.6fr 0.2fr 0.1fr;
-    @media only screen and (max-width: 640px) {
-        grid-template-columns: 0.1fr 2.8fr 0.1fr;
-        grid-template-rows: 0.1fr 0.9fr 0.1fr 0.05fr;
-    }
+    grid-template-rows: 10% 75% 10% 5%;
     grid-template-areas:
         "header header header"
         "sml mb smr"
         "bm bm bm"
         "footer footer footer";
+    @media only screen and (max-width: 640px) {
+        width: 100vw;
+        grid-template-columns: 1fr;
+        grid-template-rows: 10% 80% 10% 5%;
+        grid-template-areas:
+            "header header"
+            "mb mb"
+            "bm bm"
+            "footer footer";
+    }
+    
     // @media only screen and (max-width: 640px) {
     //     grid-template-columns: 1fr;
     //     grid-gap: 2px;
@@ -232,7 +292,7 @@ $max-body-w: 600px;
 }
 .header {
     @extend %commonLayoutOptsMobile;
-    background-color: #fff;
+    // background-color: #fff;
     grid-area: header;
     border-radius: 5px;
     display: flex;
@@ -240,8 +300,11 @@ $max-body-w: 600px;
     justify-content: center;
 }
 .side-menu-l {
+    @media only screen and (max-width: 640px) {
+        display: none;
+    }
     @extend %commonLayoutOptsMobile;
-    background-color: #fff;
+    // background-color: #fff;
     grid-area: sml;
     border-radius: 5px;
     display: flex;
@@ -250,9 +313,11 @@ $max-body-w: 600px;
 }
 .main-body {
     @extend %commonLayoutOptsMobile;
-    background-color: #fff;
+    // background-color: #fff;
     grid-area: mb;
     border-radius: 5px;
+    padding: 0;
+    margin: 0;
     .panel__box {
         @extend %neuBox;
         width: 100%;
@@ -261,8 +326,11 @@ $max-body-w: 600px;
     }
 }
 .side-menu-r {
+    @media only screen and (max-width: 640px) {
+        display: none;
+    }
     @extend %commonLayoutOptsMobile;
-    background-color: #fff;
+    // background-color: #fff;
     grid-area: smr;
     border-radius: 5px;
     display: flex;
@@ -270,22 +338,81 @@ $max-body-w: 600px;
     align-items: center;
 }
 .panel-side {
+    @media only screen and (max-width: 640px) {
+        display: none;
+    }
     @extend %neuBox;
     width: 100%;
-    height: 70%;
+    height: 400px;
+    min-height: 0;
     max-width: 200px;
     &.left {
+        @media only screen and (max-width: 640px) {
+            display: none;
+        }
         margin-right: 0;
+        display: grid;
+        grid-template-columns: 0.3fr 0.7fr;
+        grid-gap: 5px;
+        grid-auto-rows: auto;
+        grid-template-areas: 
+            "a b b";
+        .item1 {
+            grid-area: a;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            height: inherit;
+        }
+        .item2 {
+            grid-area: b;
+            overflow-y: scroll;
+            height: inherit;
+        }
     }
     &.right {
         margin-left: 0;
+        @media only screen and (max-width: 640px) {
+            display: none;
+        }
     }
 }
 .btm-menu {
     @extend %commonLayoutOptsMobile;
-    background-color: #fff;
+    // background-color: #fff;
     grid-area: bm;
     border-radius: 5px;
+    .panel-btm {
+        height: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        .list {
+            margin-top: 0;
+            margin-bottom: 0;
+            padding: 0;
+            list-style-type: none;
+            &.list--buttons {
+                display: flex;
+                align-items: center;
+                justify-content: space-around;
+                flex-grow: 1;
+                flex-basis: 20%;
+                .tab__btn {
+                    @extend %neuBtn;
+                    width: 80px;
+                    height: 40px;
+                    &:hover {
+                        color: darken(rgba($red, .95), 8%);
+                        opacity: 1;
+                    }
+                    &.isSelected {
+                        color: darken(rgba($red, .95), 8%);
+                        box-shadow: 0px 0px 1px 1px $white inset, 2px 2px 2px 0px $dark inset;
+                    }
+                }
+            }
+        }
+    }
 }
 .panel-btm {
     @extend %neuBox;
