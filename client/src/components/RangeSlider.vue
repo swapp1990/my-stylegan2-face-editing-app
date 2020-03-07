@@ -75,7 +75,7 @@ $color-bg: #f5f6f7;
 .range {
 	background: rgba(#f5f6f7, 0.3);
 	height: 2rem;
-	width: 70%;
+	width: 80%;
 	border-radius: 5rem;
 	box-shadow: 1px 5px 5px rgba(black, 0.3);
 

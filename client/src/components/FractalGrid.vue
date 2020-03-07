@@ -3,8 +3,7 @@
 <div class="gallery" id="gallery">
         <div v-for="(img, i) in galleryImgs" class="gallery-item">
             <div class="content">
-                <!-- <img :src='getImgData(i)' alt=""> -->
-                <img :style="getHeight(i)" src="https://swap-samples.s3-us-west-2.amazonaws.com/resImg.jpg" alt="">
+                <img :style="getHeight(i)" :src='getImgData(img)' alt="">
             </div>
         </div>
     </div>
@@ -18,7 +17,7 @@
         props: ["galleryImgs"],
         watch: {
             galleryImgs() {
-                // console.log(this.galleryImgs);
+                this.reshapeGallery();
             }
         },
         data() {
@@ -29,8 +28,12 @@
         },
         methods: {
             getImgData(i) {
-                let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
-                return base64Png;
+                if(i.png) {
+                    let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
+                    return base64Png;
+                } else {
+                    return "https://swap-samples.s3-us-west-2.amazonaws.com/resImg.jpg";
+                }
             },
             resizeAll() {
                 console.log("resizeAll");
@@ -40,6 +43,20 @@
                 if(i % 2 == 0) height = 300;
                 let style = "height: " + height + "px"; //+ ", width: 200px}";
                 return style;
+            },
+            reshapeGallery(){
+              var getVal = function (elem, style) { return parseInt(window.getComputedStyle(elem).getPropertyValue(style)); };
+              var getHeight = function (item) { return item.querySelector('.content').getBoundingClientRect().height; };
+              var gallery = document.querySelector('#gallery');
+              gallery.querySelectorAll('img').forEach(function (item) {
+                item.addEventListener('load', function () {
+                    var altura = getVal(gallery, 'grid-auto-rows');
+                    var gap = getVal(gallery, 'grid-row-gap');
+                    var gitem = item.parentElement.parentElement;
+                    var spanend = Math.ceil((getHeight(gitem) + gap) / (altura + gap));
+                    gitem.style.gridRowEnd = "span " + spanend;
+                })
+            });
             }
         },
         mounted() {

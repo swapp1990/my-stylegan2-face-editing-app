@@ -6,12 +6,7 @@
         </div>
         <div class="side-menu-l">
             <div class="panel-side left">
-                <div class="item1 thinScroll">
-                    <checkbox-picker :initMax="5" v-on:checked="onMixLayerPicked"></checkbox-picker>
-                </div>
-                <div class="item2 thinScroll">
-                    <scroll-gallery :mixImgs="galleryMixImgs" @onMiximgClick="onMiximgClick"></scroll-gallery>
-                </div>
+                <stylemix-menu></stylemix-menu>
             </div>
         </div>
         <div class="main-body">
@@ -33,7 +28,7 @@
                 </ul>
             </div>
         </div>
-        <div class="footer">C</div>
+        <div class="footer"><fractalGrid :galleryImgs="galleryImgs"></fractalGrid></div>
     </div>
 </div>
 </template>
@@ -48,6 +43,9 @@ import searchExpand from '@/components/FancySearch.vue';
 import fractalGrid from '@/components/FractalGrid.vue';
 import scrollGallery from '@/components/VerticalScrollImg.vue';
 import checkboxPicker from '@/components/CheckboxPicker.vue';
+import stylemixMenu from '@/views/StyleMixMenu.vue';
+import { mapState, mapActions, mapMutations } from 'vuex'
+
     export default {
         name: "homenew",
         components: {
@@ -60,10 +58,22 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
             fractalGrid: fractalGrid,
             scrollGallery: scrollGallery,
             checkboxPicker: checkboxPicker,
+            stylemixMenu: stylemixMenu
+        },
+        computed: mapState({
+            galleryImgs_store: state => state.socketStore.galleryImgs
+        }),
+        watch: {
+            galleryImgs_store:  {
+                handler: function(n, o) {
+                    this.loadGallery(n);
+                },
+                deep: true,
+                immediate: true
+            }
         },
         data() {
             return {
-                imgUrl: "",
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna'},
@@ -100,17 +110,13 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
             }
         },
         mounted() {
-            this.loadDefaultImg();
-            this.calculateFilteredAttr();
+            this.connectServer();
         },
         methods: {
-            loadDefaultImg() {
-                var img = 'url("./resImg.jpg")';
-                this.imgUrl = img;
-            },
-            displayImage(imgData) {
-                this.imgUrl = imgData.imgUrl;
-            },
+           ... mapActions('socketStore', [
+                'connectServer',
+                'sendEditAction'
+            ]),
             getTabClass(attrTab) {
                 if(attrTab.name === this.selectedAttrTab) {
                     return "attrTabSelected";
@@ -123,14 +129,12 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
             reset() {
 
             },
+            loadGallery(imgArr) {
+                if(imgArr == null) return;
+                this.galleryImgs = imgArr;
+            },
             showGallery() {
                 this.$router.push('gallery');
-            },
-            calculateFilteredAttr() {
-                this.filteredAttr = this.attributes.filter(a => {
-                    return a.tabTag === this.selectedAttrTab;
-                });
-                this.currSelectedAttr = this.filteredAttr[0];
             },
             isAttrSelected(attr) {
                 if(attr.name === this.currSelectedAttr.name) {
@@ -150,29 +154,7 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
             },
            changeSelectedTab(attrTab) {
                 this.selectedAttrTab = attrTab.name;
-                // this.calculateFilteredAttr();
                 this.$refs.imgCont.calculateFilteredAttr(this.selectedAttrTab);
-            },
-            onCoeffChange(coeff) {
-                // console.log("coeff ", coeff);
-                this.currSelectedAttr.coeff = coeff;
-                this.currAttrVal = Number(coeff);
-                let params = this.currSelectedAttr;
-                this.$refs.socketComp.sendEditAction("changeCoeff", params);
-            },
-            saveLatent() {
-                this.$refs.socketComp.sendEditAction("saveLatent", {});
-            },
-            randomize() {
-                this.$refs.socketComp.sendEditAction("randomize", {});
-            },
-            searchEnter(val) {
-                // console.log(val);
-                // this.searchTxt = val;
-                this.searchImg()
-            },
-            searchImg() {
-                // this.sendEditAction("sendSearchedImages", {"text": this.searchTxt});
             },
             onMiximgClick(imgIdx) {
                 this.selectedImgIdx = imgIdx;
@@ -351,26 +333,16 @@ $max-body-w: 600px;
             display: none;
         }
         margin-right: 0;
-        display: grid;
-        grid-template-columns: 0.3fr 0.7fr;
-        grid-gap: 5px;
-        grid-auto-rows: auto;
-        grid-template-areas: 
-            "a b b";
-        .item1 {
-            grid-area: a;
-            overflow-y: scroll;
-            overflow-x: hidden;
-            height: inherit;
-        }
-        .item2 {
-            grid-area: b;
-            overflow-y: scroll;
-            height: inherit;
-        }
+        // display: grid;
+        // grid-template-columns: 0.3fr 0.7fr;
+        // grid-gap: 5px;
+        // grid-auto-rows: auto;
+        // grid-template-areas: 
+        //     "a b b";
     }
     &.right {
         margin-left: 0;
+        display: none;
         @media only screen and (max-width: 640px) {
             display: none;
         }
@@ -421,8 +393,11 @@ $max-body-w: 600px;
     max-width: $max-body-w;
 }
 .footer {
+    @media only screen and (max-width: 640px) {
+        display: none;
+    }
     @extend %commonLayoutOptsMobile;
-    background-color: #fff;
+    // background-color: #fff;
     grid-area: footer;
     border-radius: 5px;
 }

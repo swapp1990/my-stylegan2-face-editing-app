@@ -4,7 +4,7 @@
         <div class="img-overlay-menu">
             <div class="menu-top">
                 <button type="button" @click="saveLatent"><i class='fas fa-save icon'></i></button>
-                <search-expand @onEnter="searchEnter"></search-expand>
+                <search-expand @onEnter="onSearchEnter"></search-expand>
                 <button type="button" @click="showGallery"><i class='fas fa-archive icon'></i></button>
             </div>
             <div class="menu-side left" :class="{compact:!showStyleMix}">
@@ -41,6 +41,7 @@ import rangeslider from '@/components/RangeSlider.vue';
 import scrollGallery from '@/components/VerticalScrollImg.vue';
 import checkboxPicker from '@/components/CheckboxPicker.vue';
 import stylemixMenu from '@/views/StyleMixMenu.vue';
+import { mapState, mapActions, mapMutations } from 'vuex'
 export default {
     name:"imgContainer",
     components: {
@@ -49,6 +50,18 @@ export default {
         checkboxPicker: checkboxPicker,
         scrollGallery: scrollGallery,
         stylemixMenu: stylemixMenu
+    },
+    computed: mapState({
+        mainFaceImg: state => state.socketStore.mainFaceImg
+    }),
+    watch: {
+        mainFaceImg:  {
+            handler: function(n, o) {
+                this.loadServerImg(n);
+            },
+            deep: true,
+            immediate: true
+        }
     },
     data() {
         return {
@@ -84,16 +97,22 @@ export default {
         this.calculateFilteredAttr(this.selectedAttrTab);
     },
     methods: {
+        ... mapActions('socketStore', [
+            'sendEditAction'
+        ]),
         loadDefaultImg() {
             var img = 'url("./resImg.jpg")';
             this.imgUrl = img;
+        },
+        loadServerImg(imgUrl) {
+            this.imgUrl = imgUrl;
         },
         calculateFilteredAttr(selectedTab) {
             this.selectedAttrTab = selectedTab;
             this.filteredAttr = this.attributes.filter(a => {
                 return a.tabTag === this.selectedAttrTab;
             });
-            this.currSelectedAttr = this.filteredAttr[0];
+            this.changeSelectedAttr(this.filteredAttr[0]);
         },
         getIcon(iconClass) {
             return iconClass + " fa-lg fa-fw";
@@ -106,32 +125,45 @@ export default {
         },
         changeSelectedAttr(attr) {
             this.currSelectedAttr = attr;
-            // this.currAttrVal = Number(this.currSelectedAttr.coeff);
+            this.currAttrVal = Number(this.currSelectedAttr.coeff);
         },
         //Image overlay events
         showGallery() {
             this.$router.push('gallery');
         },
+        onSearchEnter(val) {
+            // console.log(val);
+            this.searchTxt = val;
+            this.searchImg();
+        },
+        //Image Edit Actions to Server
         onCoeffChange(coeff) {
             // console.log("coeff ", coeff);
             this.currSelectedAttr.coeff = coeff;
             this.currAttrVal = Number(coeff);
             let params = this.currSelectedAttr;
-            // this.$refs.socketComp.sendEditAction("changeCoeff", params);
+            let msg = {};
+            msg.action = "changeCoeff";
+            msg.params = params;
+            this.sendEditAction(msg);
         },
         saveLatent() {
-            // this.$refs.socketComp.sendEditAction("saveLatent", {});
+            let msg = {};
+            msg.action = "saveLatent";
+            msg.params = {};
+            this.sendEditAction(msg);
         },
         randomize() {
-            // this.$refs.socketComp.sendEditAction("randomize", {});
-        },
-        searchEnter(val) {
-            // console.log(val);
-            // this.searchTxt = val;
-            this.searchImg();
+            let msg = {};
+            msg.action = "randomize";
+            msg.params = {};
+            this.sendEditAction(msg);
         },
         searchImg() {
-            // this.sendEditAction("sendSearchedImages", {"text": this.searchTxt});
+            let msg = {};
+            msg.action = "sendSearchedImages";
+            msg.params = {"text": this.searchTxt};
+            this.sendEditAction(msg);
         },
         onStyleMix() {
 
@@ -189,7 +221,6 @@ $dark: rgba(52, 55, 61, 0.6);
         }
         grid-template-rows: 1fr 5fr 0.3fr;
         grid-template-columns: auto;
-        
         .menu-btm {
             align-self: end;
             display: flex;
@@ -209,6 +240,10 @@ $dark: rgba(52, 55, 61, 0.6);
             width: 100%;
             border-radius: 5rem;
             box-shadow: 1px 5px 5px rgba(black, 0.3);
+            padding-bottom: 10px;
+            @media only screen and (max-width: 640px) {
+                padding-bottom: 0px;
+            }
             padding-left: 10px;
             padding-right: 10px;
             display: flex;
@@ -240,14 +275,19 @@ $dark: rgba(52, 55, 61, 0.6);
 	            align-self: center;
                 justify-content: space-around;
                 .tab_btn {
-                    background: rgba(#f5f6f7, 0.3);
+                    background: rgba(#1e1e1f, 0.7);
                     outline: none;
                     border: none;
+                    border-radius: 5rem;
                     cursor: pointer;
                     -webkit-transform:rotate(90deg);
                     height: 30px;
                     width: 120px;
                     font-size: 15px;
+                    text-transform: uppercase;
+                    font-weight: 700;
+                    color: #e9c9a9;
+                    font-family: 'Dancing Script'
                 }
             }
             .expanded-menu {
@@ -269,7 +309,9 @@ $dark: rgba(52, 55, 61, 0.6);
 .attrs-selector {
     margin: 0 auto;
     .list {
-        margin-top: 20px;
+        @media only screen and (max-width: 640px) {
+            margin-top: 20px;
+        }
         padding: 0;
         list-style-type: none;
         &.list--buttons {

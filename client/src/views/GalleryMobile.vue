@@ -9,11 +9,24 @@
 <script>
 import fractalGrid from '@/components/FractalGrid.vue';
 import logoHeading from '@/components/LogoHeading.vue';
+import { mapState, mapActions, mapMutations } from 'vuex'
     export default {
         name: "GalleryMobile",
         components: {
             fractalGrid: fractalGrid,
             logoHeading: logoHeading,
+        },
+        computed: mapState({
+            galleryImgs_store: state => state.socketStore.galleryImgs
+        }),
+        watch: {
+            galleryImgs_store:  {
+                handler: function(n, o) {
+                    this.loadGallery(n);
+                },
+                deep: true,
+                immediate: true
+            }
         },
         data() {
             return {
@@ -21,6 +34,12 @@ import logoHeading from '@/components/LogoHeading.vue';
             }
         },
         mounted() {
+        },
+        methods: {
+            loadGallery(imgArr) {
+                if(imgArr == null) return;
+                this.galleryImgs = imgArr;
+            },
         }
     }
 </script>
