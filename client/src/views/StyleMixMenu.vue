@@ -70,6 +70,9 @@ import { mapState, mapActions, mapMutations } from 'vuex'
 $red: #d30320;
 .mixwrapper {
     height: inherit;
+    @media only screen and (min-width: 640px) {
+        height: 95%;
+    }
     display: grid;
     grid-template-columns: 0.3fr 0.7fr;
     grid-gap: 5px;

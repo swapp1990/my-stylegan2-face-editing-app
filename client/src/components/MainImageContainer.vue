@@ -266,7 +266,7 @@ $dark: rgba(52, 55, 61, 0.6);
                 "a b b";
             .tabs {
                 grid-area: a;
-                background: rgba(#f5f6f7, 0.3);
+                // background: rgba(#f5f6f7, 0.3);
                 height: 50vh;
                 width: 100%;
                 display: inline-flex;
@@ -291,11 +291,12 @@ $dark: rgba(52, 55, 61, 0.6);
                 }
             }
             .expanded-menu {
+                padding-top: 20px;
                 grid-area: b;
                 background: rgba(#f5f6f7, 0.3);
                 height: 50vh;
                 width: 40vw;
-                 border-radius: 2rem;
+                border-radius: 2rem;
                 box-shadow: 1px 5px 5px rgba(black, 0.3);
                 padding-left: 10px;
                 padding-right: 10px;
