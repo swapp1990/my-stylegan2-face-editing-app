@@ -1,6 +1,9 @@
 <template>
 <div class="wrapper">
-<div class="gallery" id="gallery">
+  <div class="loading">
+      <i v-if="isGalleryLoading" class='fas fa-spinner fa-spin fa-fw'></i> 
+  </div>
+  <div class="gallery" id="gallery">
         <div v-for="(img, i) in galleryImgs" class="gallery-item">
             <div class="content" @click="openGalleryImg(img)">
                 <img :style="getHeight(i)" :src='getImgData(img)' alt="">
@@ -24,7 +27,22 @@ import { mapState, mapActions, mapMutations } from 'vuex';
         data() {
             return {
                 faceImageBG: "",
-                imagesLen: 16
+                imagesLen: 16,
+                isGalleryLoading: false
+            }
+        },
+        computed: mapState({
+            isConnected: state => state.socketStore.isConnected
+        }),
+        watch: {
+            isConnected: {
+                handler: function(n, o) {
+                    if(n) {
+                        this.isGalleryLoading = true;
+                    }
+                },
+                deep: true,
+                immediate: true
             }
         },
         methods: {
@@ -61,6 +79,7 @@ import { mapState, mapActions, mapMutations } from 'vuex';
                       gitem.style.gridRowEnd = "span " + spanend;
                   })
                 });
+                // this.isGalleryLoading = false;
             },
             openGalleryImg(img) {
               let msg = {};
@@ -68,6 +87,7 @@ import { mapState, mapActions, mapMutations } from 'vuex';
               msg.params = {"galleryIdx": img.galleryIdx};
               this.sendEditAction(msg);
               this.$router.push("/");
+              this.$ga.event('category', 'btnClick', 'openGalleryImg', 1);
             }
         },
         mounted() {

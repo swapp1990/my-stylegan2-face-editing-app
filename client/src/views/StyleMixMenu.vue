@@ -32,6 +32,7 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             scrollGallery: scrollGallery
         },
         computed: mapState({
+            isConnected: state => state.socketStore.isConnected,
             galleryMixImgs: state => state.socketStore.galleryMixImgs,
             cleared: state => state.socketStore.cleared,
             mainFaceImg: state => state.socketStore.mainFaceImg,
@@ -57,6 +58,15 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 handler: function(n, o) {
                     if(n) {
                         this.clear(n);
+                    }
+                },
+                deep: true,
+                immediate: true
+            },
+            isConnected: {
+                handler: function(n, o) {
+                    if(n) {
+                        this.isMixing = true;
                     }
                 },
                 deep: true,
@@ -113,6 +123,7 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 msg.params = params;
                 this.sendEditAction(msg);
                 this.isLocked = true;
+                this.$ga.event('category', 'btnClick', 'lockMixStyle', 1);
             }
         }
     }

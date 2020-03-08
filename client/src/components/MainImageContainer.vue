@@ -75,6 +75,15 @@ export default {
             },
             deep: true,
             immediate: true
+        },
+        isConnected: {
+            handler: function(n, o) {
+                if(n) {
+                    this.serverConnected(n);
+                }
+            },
+            deep: true,
+            immediate: true
         }
     },
     data() {
@@ -120,6 +129,10 @@ export default {
             'sendEditAction',
             'clearStore'
         ]),
+        serverConnected(flag) {
+            console.log("server is connected");
+            this.isImgLoading = true;
+        },
         clear(flag) {
             this.selectedAttrTab = 'basic',
             this.attributes.forEach(a => {

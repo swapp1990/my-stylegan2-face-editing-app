@@ -28,7 +28,9 @@
                 </ul>
             </div>
         </div>
-        <div class="footer"><fractalGrid :galleryImgs="galleryImgs"></fractalGrid></div>
+        <div class="footer">
+            <fractalGrid :galleryImgs="galleryImgs"></fractalGrid>
+        </div>
     </div>
 </div>
 </template>
