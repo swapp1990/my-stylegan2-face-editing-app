@@ -194,12 +194,14 @@ export default {
             msg.params = {};
             this.sendEditAction(msg);
             this.clearStore();
+            this.isImgLoading = true;
         },
         searchImg() {
             let msg = {};
             msg.action = "sendSearchedImages";
             msg.params = {"text": this.searchTxt};
             this.sendEditAction(msg);
+            this.isImgLoading = true;
         },
         onStyleMix() {
 

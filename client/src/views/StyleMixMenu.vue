@@ -7,10 +7,16 @@
             <scroll-gallery :mixImgs="mixImgs" :selectedImgIdx="selectedImgIdx" @onMiximgClick="onMiximgClick"></scroll-gallery>
         </div>
         <div class="item3">
-            <button type="button" class="lockCls"> 
+            <div class="bar">
+                <button type="button" class="lockCls"> 
                 <i v-if="!isLocked" class='fas fa-lock-open fa-fw' @click="lockMixStyle"></i> 
                 <i v-if="isLocked" class='fas fa-lock fa-fw'></i> 
-            </button>
+                </button>
+                <button type="button" class="lockCls"> 
+                    <i v-if="!isMixing" class='fas fa-check fa-fw'></i> 
+                    <i v-if="isMixing" class='fas fa-spinner fa-spin fa-fw'></i> 
+                </button>
+            </div>
         </div>
     </div>
 </template>
@@ -27,9 +33,19 @@ import { mapState, mapActions, mapMutations } from 'vuex'
         },
         computed: mapState({
             galleryMixImgs: state => state.socketStore.galleryMixImgs,
-            cleared: state => state.socketStore.cleared
+            cleared: state => state.socketStore.cleared,
+            mainFaceImg: state => state.socketStore.mainFaceImg,
         }),
         watch: {
+            mainFaceImg:  {
+                handler: function(n, o) {
+                    if(this.isMixing) {
+                        this.isMixing = false;
+                    }
+                },
+                deep: true,
+                immediate: true
+            },
             galleryMixImgs:  {
                 handler: function(n, o) {
                     this.loadGallery(n);
@@ -52,7 +68,8 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 mixImgs: ["1", "2", "3", "4", "5"],
                 layersMixMap: [],
                 selectedImgIdx: 0,
-                isLocked: true
+                isLocked: true,
+                isMixing: false
             }
         },
         methods: {
@@ -77,6 +94,7 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 msg.params = params;
                 this.sendEditAction(msg);
                 this.isLocked = false;
+                this.isMixing = true;
             },
             onMixLayerPicked(vals) {
                 this.layersMixMap = vals;
@@ -86,6 +104,7 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 msg.params = params;
                 this.sendEditAction(msg);
                 this.isLocked = false;
+                this.isMixing = true;
             },
             lockMixStyle() {
                 let params = {};
@@ -127,6 +146,11 @@ $red: #d30320;
     .item3 {
         grid-area: c;
         height: inherit;
+        &.bar {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+        }
     }
 }
 .lockCls {
