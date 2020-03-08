@@ -237,6 +237,9 @@ $dark: rgba(52, 55, 61, 0.6);
     margin-bottom: 0px;
     width: 100%;
     height: 65vh;
+    @media only screen and (max-height: 800px) {
+        height: 67vh;
+    }
     background-repeat: no-repeat;
     background-size: auto;
     background-position: center;
@@ -250,6 +253,11 @@ $dark: rgba(52, 55, 61, 0.6);
         padding-bottom: 60px;
         display: grid;
         height: 65vh;
+        @media only screen and (max-height: 800px) {
+            height: 70vh;
+            padding-top: 30px;
+            padding-bottom: 20px;
+        }
         @media only screen and (max-width: 640px) {
             padding-top: 10px;
             padding-bottom: 10px;
@@ -272,11 +280,11 @@ $dark: rgba(52, 55, 61, 0.6);
         .menu-top {
             align-self: top;
             background: rgba(#f5f6f7, 0.3);
-            height: 2.1rem;
+            height: 2.2rem;
             width: 100%;
             border-radius: 5rem;
             box-shadow: 1px 5px 5px rgba(black, 0.3);
-            padding-bottom: 10px;
+            // padding-bottom: 10px;
             @media only screen and (max-width: 640px) {
                 padding-bottom: 0px;
             }
