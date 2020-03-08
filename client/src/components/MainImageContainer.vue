@@ -17,7 +17,10 @@
                 </div>
             </div>
             <div class="menu-btm">
-                <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
+                <button type="button">
+                    <i v-if="isImgLoading" class='fas fa-spinner fa-spin icon fa-fw'></i>
+                    <i v-if="!isImgLoading" class='fas fa-check fa-fw'></i>
+                </button>
                 <rangeslider class="menu-slider" id="menuSlider" :initVal="currAttrVal" :min="-15" :max="15" @changedAttr="onCoeffChange"></rangeslider>
                 <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
             </div>
@@ -52,12 +55,23 @@ export default {
         stylemixMenu: stylemixMenu
     },
     computed: mapState({
-        mainFaceImg: state => state.socketStore.mainFaceImg
+        isConnected: state => state.socketStore.isConnected,
+        mainFaceImg: state => state.socketStore.mainFaceImg,
+        cleared: state => state.socketStore.cleared
     }),
     watch: {
         mainFaceImg:  {
             handler: function(n, o) {
                 this.loadServerImg(n);
+            },
+            deep: true,
+            immediate: true
+        },
+        cleared: {
+            handler: function(n, o) {
+                if(n) {
+                    this.clear(n);
+                }
             },
             deep: true,
             immediate: true
@@ -89,22 +103,36 @@ export default {
             filteredAttr: [],
             currSelectedAttr: null,
             currAttrVal: 0,
-            showStyleMix: false
+            showStyleMix: false,
+            isImgLoading: false
         }
     },
     mounted() {
-        this.loadDefaultImg();
+        if(!this.isConnected) {
+            this.loadDefaultImg();
+        } else {
+            this.loadServerImg(this.mainFaceImg);
+        }
         this.calculateFilteredAttr(this.selectedAttrTab);
     },
     methods: {
         ... mapActions('socketStore', [
-            'sendEditAction'
+            'sendEditAction',
+            'clearStore'
         ]),
+        clear(flag) {
+            this.selectedAttrTab = 'basic',
+            this.attributes.forEach(a => {
+                a.coeff = 0.0;
+            });
+            this.currAttrVal = 0.0;
+        },
         loadDefaultImg() {
             var img = 'url("./resImg.jpg")';
             this.imgUrl = img;
         },
         loadServerImg(imgUrl) {
+            this.isImgLoading = false;
             this.imgUrl = imgUrl;
         },
         calculateFilteredAttr(selectedTab) {
@@ -116,6 +144,12 @@ export default {
         },
         getIcon(iconClass) {
             return iconClass + " fa-lg fa-fw";
+        },
+        getLoadingStyle() {
+            if(this.isImgLoading) {
+                return "{display: auto}";
+            }
+            return "{opacity: 0}";
         },
         isAttrSelected(attr) {
             if(attr.name === this.currSelectedAttr.name) {
@@ -139,6 +173,7 @@ export default {
         //Image Edit Actions to Server
         onCoeffChange(coeff) {
             // console.log("coeff ", coeff);
+            this.isImgLoading = true;
             this.currSelectedAttr.coeff = coeff;
             this.currAttrVal = Number(coeff);
             let params = this.currSelectedAttr;
@@ -158,6 +193,7 @@ export default {
             msg.action = "randomize";
             msg.params = {};
             this.sendEditAction(msg);
+            this.clearStore();
         },
         searchImg() {
             let msg = {};
@@ -211,7 +247,7 @@ $dark: rgba(52, 55, 61, 0.6);
     }
     .img-overlay-menu {
         padding-top: 20px;
-        padding-bottom: 30px;
+        padding-bottom: 60px;
         display: grid;
         height: 65vh;
         @media only screen and (max-width: 640px) {
@@ -255,7 +291,7 @@ $dark: rgba(52, 55, 61, 0.6);
             }
         }
         .menu-side {
-            @media only screen and (min-width: 640px) {
+            @media only screen and (min-width: 1000px) {
                 display: none;
             }
             display: grid;

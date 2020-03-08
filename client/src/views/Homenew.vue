@@ -61,7 +61,8 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             stylemixMenu: stylemixMenu
         },
         computed: mapState({
-            galleryImgs_store: state => state.socketStore.galleryImgs
+            galleryImgs_store: state => state.socketStore.galleryImgs,
+            isConnected: state => state.socketStore.isConnected
         }),
         watch: {
             galleryImgs_store:  {
@@ -105,12 +106,12 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 currSelectedAttr: null,
                 galleryImgs: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
                 galleryMixImgs: ["1", "2", "3", "4", "5"],
-                layersMixMap: [],
-                selectedImgIdx: 0
             }
         },
         mounted() {
-            this.connectServer();
+            if(!this.isConnected) {
+                this.connectServer();
+            }
         },
         methods: {
            ... mapActions('socketStore', [
@@ -155,16 +156,6 @@ import { mapState, mapActions, mapMutations } from 'vuex'
            changeSelectedTab(attrTab) {
                 this.selectedAttrTab = attrTab.name;
                 this.$refs.imgCont.calculateFilteredAttr(this.selectedAttrTab);
-            },
-            onMiximgClick(imgIdx) {
-                this.selectedImgIdx = imgIdx;
-                // let params = {"styleImgIdx": imgIdx, "layersMixMap": this.layersMixMap};
-                // this.sendEditAction("mixStyleImg", params);
-            },
-            onMixLayerPicked(vals) {
-                this.layersMixMap = vals;
-                let params = {"styleImgIdx": this.selectedImgIdx, "layersMixMap": this.layersMixMap};
-                // this.sendEditAction("mixStyleImg", params);
             },
         }
     }
@@ -282,7 +273,7 @@ $max-body-w: 600px;
     justify-content: center;
 }
 .side-menu-l {
-    @media only screen and (max-width: 640px) {
+    @media only screen and (max-width: 1000px) {
         display: none;
     }
     @extend %commonLayoutOptsMobile;

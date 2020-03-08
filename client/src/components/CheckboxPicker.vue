@@ -1,8 +1,10 @@
 <template>
 <div class="pick-wrapper">
   <ul class="ks-cboxtags">
-    <li v-for="val in values"><input type="checkbox" :id="val.id" v-model='val.checked' @change="changeVals()">
-        <label :for="val.id">{{val.id}}</label>
+    <li v-for="val in values">
+        <input type="checkbox" :id="val.id" v-model='val.checked' @change="changeVals()">
+        <!-- <label :for="val.id" @click="clickOnLabel(val)">{{val.id}}</label> -->
+        <label @click="clickOnLabel(val)">{{val.id}}</label>
     </li>
   </ul>
 </div>
@@ -20,7 +22,7 @@
         data() {
             return {
                 minRange: 0,
-                maxRange: 18,
+                maxRange: 13,
                 values: []
             }
         },
@@ -36,13 +38,14 @@
                     }
                     this.values.push({id: i, checked: checkedVal})
                 }
+                this.$emit('checkedInit', this.values);
             },
             changeVals() {
                 this.$emit('checked', this.values);
             },
             clickOnLabel(val) {
-                console.log("click ", val);
-                // val.checked = !val.checked;
+                // console.log("click ", val.checked);
+                val.checked = !val.checked;
                 this.$emit('checked', this.values);
             }
         }
@@ -123,7 +126,7 @@ ul.ks-cboxtags li input[type="checkbox"]:checked + label::before {
 
 ul.ks-cboxtags li input[type="checkbox"]:checked + label {
     border: 2px solid #1bdbf8;
-    background-color: #12bbd4;
+    background-color: #f31a1ed1;
     color: #fff;
     transition: all .2s;
 }

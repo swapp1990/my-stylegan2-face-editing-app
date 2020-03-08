@@ -33,7 +33,12 @@ class SGEThread():
         self.w_src = None
         self.w_src_orig = None
         self.w_src_curr = None
+        self.w_src_mix = None
         self.freezeIdxs = []
+
+        #Gallery
+        self.w_src_gallery_list = []
+        self.gallery_total = 15
     
         self.call_func_names = {
             'generateRandomImg': self.generateRandomSrcImg,
@@ -42,11 +47,14 @@ class SGEThread():
             'clear': self.clear,
             'sendSearchedImages': self.generateSearchedImgs,
             'saveLatent': self.saveLatent,
+            'sendGallery': self.sendGallery,
             'mixStyleImg': self.mixStyleImg,
             'send_wSrc': self.got_wSrc,
             'send_GImgs': self.got_GImgs,
             'send_Img_W': self.got_Img_W,
-            'send_stylemix_imgs': self.got_stylemix
+            'send_stylemix_imgs': self.got_stylemix,
+            'lockStyle': self.lockStyle,
+            'loadGalleryImg': self.loadGalleryImg
         }
         
         self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
@@ -84,6 +92,8 @@ class SGEThread():
             if params.update_curr:
                 self.w_src = params.w_src
                 self.w_src_curr = params.w_src
+            else:
+                self.w_src_mix = params.w_src
         g_images = params.G_imgs
         resImg = PIL.Image.fromarray(g_images[0], 'RGB')
         resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
@@ -143,6 +153,10 @@ class SGEThread():
 
         time.sleep(0.5)
         self.sendSavedGallery()
+    
+    def sendGallery(self, params=None):
+        print('sendGallery')
+        self.sendSavedGallery()
   
     def sendStyleMixGallery(self):
         outParams = EasyDict({})
@@ -163,6 +177,23 @@ class SGEThread():
                     mixLayers.append(int(l['id']))
             outParams.mixLayers = mixLayers
         self.broadcastToMainThread("generateStyleMixedImg", outParams)
+    
+    def lockStyle(self, params=None):
+        print("lockStyle")
+        self.w_src = self.w_src_mix
+    
+    def loadGalleryImg(self, params=None):
+        print("loadGalleryImg ", params)
+        galleryIdx = params.galleryIdx
+        curr_galley_list = self.getGallerySrcs()
+        if len(curr_galley_list) > 0:
+            curr_galley_list.reverse()
+            curr_galley_list = curr_galley_list[:self.gallery_total]
+            curr_wsrc_toload = curr_galley_list[galleryIdx]
+            self.w_src = curr_wsrc_toload
+            self.w_src_curr = curr_wsrc_toload
+            outParams = EasyDict({"w_src": curr_wsrc_toload})
+            self.broadcastToMainThread("generateImgFromWSrc", outParams)
 
     ############################## Clipping W ###################################
     def moveLatent_clipped(self,latent_vector, direction,coeff, hasAttrChanged=False):
@@ -254,6 +285,15 @@ class SGEThread():
             if idx_dict['name'] == attrName:
                 idx_dict['freeze'] = idxs
     ############################## Utils ########################################
+    def getGallerySrcs(self):
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+
+        w_srsc = []
+        for i in range(len(savedAttrs)):
+            w_srsc.append(savedAttrs[i]['wlatent'])
+        return w_srsc
     # Move latent vector to a selected attribute direction using coeff value
     def moveLatent(self, latent_vector, direction, coeff, hasAttrChanged=False):
         coeff = -1 * coeff
@@ -280,7 +320,10 @@ class SGEThread():
         w_srsc = []
         for i in range(len(savedAttrs)):
             w_srsc.append(savedAttrs[i]['wlatent'])
+        self.w_src_gallery_list = w_srsc
         if len(w_srsc) > 0:
+            w_srsc.reverse()
+            w_srsc = w_srsc[:self.gallery_total]
             w_srsc = np.asarray(w_srsc)
             w_srsc = np.squeeze(w_srsc, axis=1)
             outParams = EasyDict({"w_src": w_srsc, "tag": "gallery"})
@@ -294,7 +337,10 @@ class SGEThread():
             mp_fig = self.getImageFig(resImg)
             galleryImgs.append({'id': idx, 'mp_fig': mp_fig})
         payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': tag}
-        self.broadcastToClient(EasyDict(payload))
+        broadcastToAll = True
+        if tag=='styleMixGallery':
+            broadcastToAll = False
+        self.broadcastToClient(EasyDict(payload), broadcastToAll=broadcastToAll)
 
     def getImageFig(self, img, imgSize=512):
         my_dpi = 96

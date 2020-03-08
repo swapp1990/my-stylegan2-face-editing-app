@@ -1,10 +1,16 @@
 <template>
     <div class="mixwrapper">
         <div class="item1 thinScroll">
-            <checkbox-picker :initMax="5" v-on:checked="onMixLayerPicked"></checkbox-picker>
+            <checkbox-picker :initMax="5" v-on:checkedInit="onCheckedInit" v-on:checked="onMixLayerPicked"></checkbox-picker>
         </div>
         <div class="item2 thinScroll">
-            <scroll-gallery :mixImgs="mixImgs" @onMiximgClick="onMiximgClick"></scroll-gallery>
+            <scroll-gallery :mixImgs="mixImgs" :selectedImgIdx="selectedImgIdx" @onMiximgClick="onMiximgClick"></scroll-gallery>
+        </div>
+        <div class="item3">
+            <button type="button" class="lockCls"> 
+                <i v-if="!isLocked" class='fas fa-lock-open fa-fw' @click="lockMixStyle"></i> 
+                <i v-if="isLocked" class='fas fa-lock fa-fw'></i> 
+            </button>
         </div>
     </div>
 </template>
@@ -20,12 +26,22 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             scrollGallery: scrollGallery
         },
         computed: mapState({
-            galleryMixImgs: state => state.socketStore.galleryMixImgs
+            galleryMixImgs: state => state.socketStore.galleryMixImgs,
+            cleared: state => state.socketStore.cleared
         }),
         watch: {
             galleryMixImgs:  {
                 handler: function(n, o) {
                     this.loadGallery(n);
+                },
+                deep: true,
+                immediate: true
+            },
+            cleared: {
+                handler: function(n, o) {
+                    if(n) {
+                        this.clear(n);
+                    }
                 },
                 deep: true,
                 immediate: true
@@ -35,16 +51,23 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             return {
                 mixImgs: ["1", "2", "3", "4", "5"],
                 layersMixMap: [],
-                selectedImgIdx: 0
+                selectedImgIdx: 0,
+                isLocked: true
             }
         },
         methods: {
             ... mapActions('socketStore', [
                 'sendEditAction'
             ]),
+            clear(flag) {
+
+            },
             loadGallery(imgArr) {
                 if(imgArr == null) return;
                 this.mixImgs = imgArr;
+            },
+            onCheckedInit(vals) {
+                this.layersMixMap = vals;
             },
             onMiximgClick(imgIdx) {
                 this.selectedImgIdx = imgIdx;
@@ -53,6 +76,7 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 msg.action = "mixStyleImg";
                 msg.params = params;
                 this.sendEditAction(msg);
+                this.isLocked = false;
             },
             onMixLayerPicked(vals) {
                 this.layersMixMap = vals;
@@ -61,7 +85,16 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 msg.action = "mixStyleImg";
                 msg.params = params;
                 this.sendEditAction(msg);
+                this.isLocked = false;
             },
+            lockMixStyle() {
+                let params = {};
+                let msg = {};
+                msg.action = "lockStyle";
+                msg.params = params;
+                this.sendEditAction(msg);
+                this.isLocked = true;
+            }
         }
     }
 </script>
@@ -78,7 +111,8 @@ $red: #d30320;
     grid-gap: 5px;
     grid-auto-rows: auto;
     grid-template-areas: 
-        "a b b";
+        "a b"
+        "c c";
     .item1 {
         grid-area: a;
         overflow-y: scroll;
@@ -90,6 +124,15 @@ $red: #d30320;
         overflow-y: scroll;
         height: inherit;
     }
+    .item3 {
+        grid-area: c;
+        height: inherit;
+    }
+}
+.lockCls {
+    background: transparent;
+    outline: none;
+    border: none;
 }
 .thinScroll::-webkit-scrollbar-track {
     -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);

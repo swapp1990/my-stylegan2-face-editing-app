@@ -61,6 +61,9 @@ def set_session(data):
     #Send first random img to each client seperately as soon as they login
     msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
     workerCls.broadcast_event(EasyDict(msg))
+    #Send saved gallery
+    msg = EasyDict({'id': request.sid, 'action': 'sendGallery', 'params': {}})
+    workerCls.broadcast_event(EasyDict(msg))
 
 @socketio.on('editAction')
 def editActions(actionData):

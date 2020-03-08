@@ -6,7 +6,8 @@ const state = {
     mainFaceImg: null,
     count: 1,
     galleryImgs: null,
-    galleryMixImgs: null
+    galleryMixImgs: null,
+    cleared: null
 }
 
 // getters
@@ -64,11 +65,14 @@ function handleReceivedGallery(content, commit) {
 const actions = {
     connectServer({commit, state}, config) {
         console.log("connecting server");
-        let socket = io.connect('http://127.0.0.1:5000');
+        let SERVER_URL = "52.35.92.83";
+        SERVER_URL = "localhost"
+        let socket = io.connect(SERVER_URL+':5000');
         socket.on('connect',()=>{
             console.log("connected");
             commit('setSocket', socket);
             socket.emit('set-session', {"user": state.username});
+            state.isConnected = true
         });
         socket.on('loggedin', (data)=>{
             console.log("logged in ", data);
@@ -79,10 +83,12 @@ const actions = {
         });
     },
     sendEditAction({commit, state}, msg) {
-        
         if(state.socket) {
             state.socket.emit('editAction', msg);
         }
+    },
+    clearStore({commit, state}) {
+        state.cleared = true;
     }
 }
 

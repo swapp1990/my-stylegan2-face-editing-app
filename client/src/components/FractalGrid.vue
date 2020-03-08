@@ -2,7 +2,7 @@
 <div class="wrapper">
 <div class="gallery" id="gallery">
         <div v-for="(img, i) in galleryImgs" class="gallery-item">
-            <div class="content">
+            <div class="content" @click="openGalleryImg(img)">
                 <img :style="getHeight(i)" :src='getImgData(img)' alt="">
             </div>
         </div>
@@ -12,6 +12,7 @@
 </template>
 
 <script>
+import { mapState, mapActions, mapMutations } from 'vuex';
     export default {
         name: "fractalGrid",
         props: ["galleryImgs"],
@@ -27,6 +28,9 @@
             }
         },
         methods: {
+            ... mapActions('socketStore', [
+                'sendEditAction'
+            ]),
             getImgData(i) {
                 if(i.png) {
                     let base64Png = "data:image/jpeg;charset=utf-8;base64,"+i.png;
@@ -45,18 +49,25 @@
                 return style;
             },
             reshapeGallery(){
-              var getVal = function (elem, style) { return parseInt(window.getComputedStyle(elem).getPropertyValue(style)); };
-              var getHeight = function (item) { return item.querySelector('.content').getBoundingClientRect().height; };
-              var gallery = document.querySelector('#gallery');
-              gallery.querySelectorAll('img').forEach(function (item) {
-                item.addEventListener('load', function () {
-                    var altura = getVal(gallery, 'grid-auto-rows');
-                    var gap = getVal(gallery, 'grid-row-gap');
-                    var gitem = item.parentElement.parentElement;
-                    var spanend = Math.ceil((getHeight(gitem) + gap) / (altura + gap));
-                    gitem.style.gridRowEnd = "span " + spanend;
-                })
-            });
+                var getVal = function (elem, style) { return parseInt(window.getComputedStyle(elem).getPropertyValue(style)); };
+                var getHeight = function (item) { return item.querySelector('.content').getBoundingClientRect().height; };
+                var gallery = document.querySelector('#gallery');
+                gallery.querySelectorAll('img').forEach(function (item) {
+                  item.addEventListener('load', function () {
+                      var altura = getVal(gallery, 'grid-auto-rows');
+                      var gap = getVal(gallery, 'grid-row-gap');
+                      var gitem = item.parentElement.parentElement;
+                      var spanend = Math.ceil((getHeight(gitem) + gap) / (altura + gap));
+                      gitem.style.gridRowEnd = "span " + spanend;
+                  })
+                });
+            },
+            openGalleryImg(img) {
+              let msg = {};
+              msg.action = "loadGalleryImg";
+              msg.params = {"galleryIdx": img.galleryIdx};
+              this.sendEditAction(msg);
+              this.$router.push("/");
             }
         },
         mounted() {

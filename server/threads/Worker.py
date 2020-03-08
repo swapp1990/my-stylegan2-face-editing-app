@@ -48,6 +48,7 @@ class Worker(threading.Thread):
         # print('emitGeneral ', payload.keys())
         if 'broadcastToAll' in payload.keys():
             if payload.broadcastToAll:
+                print("broadcastToAll")
                 self.socketio.emit('General', payload)
         self.socketio.emit('General', payload, room = payload.id)
 
