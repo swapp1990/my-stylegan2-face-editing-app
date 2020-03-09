@@ -132,3 +132,4 @@ results/
 client/src/assets/
 logs/
 flask_session/
+client/backups/

@@ -66,7 +66,6 @@ class SGEThread():
         print("Thread generateRandomSrcImg ", params)
         outParams = EasyDict({})
         self.broadcastToMainThread("runRandomMapping", outParams)
-        self.sendSavedGallery()
     
     def got_wSrc(self, params=None):
         print("Thread got_wSrc ", params.keys())
@@ -181,6 +180,7 @@ class SGEThread():
     def lockStyle(self, params=None):
         print("lockStyle")
         self.w_src = self.w_src_mix
+        self.w_src_curr = self.w_src_mix
     
     def loadGalleryImg(self, params=None):
         print("loadGalleryImg ", params)
@@ -340,6 +340,7 @@ class SGEThread():
         broadcastToAll = True
         if tag=='styleMixGallery':
             broadcastToAll = False
+        print("broadcastToClient ", broadcastToAll, tag)
         self.broadcastToClient(EasyDict(payload), broadcastToAll=broadcastToAll)
 
     def getImageFig(self, img, imgSize=512):

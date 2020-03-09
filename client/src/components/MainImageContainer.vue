@@ -3,7 +3,9 @@
     <div class="img-container" v-bind:style="{ 'background-image': imgUrl}">
         <div class="img-overlay-menu">
             <div class="menu-top">
-                <button type="button" @click="saveLatent"><i class='fas fa-save icon'></i></button>
+                <button type="button" @click="saveLatent" :disabled="isSaved">
+                    <i class='fas fa-save icon'></i>
+                </button>
                 <search-expand @onEnter="onSearchEnter"></search-expand>
                 <button type="button" @click="showGallery"><i class='fas fa-archive icon'></i></button>
             </div>
@@ -113,7 +115,8 @@ export default {
             currSelectedAttr: null,
             currAttrVal: 0,
             showStyleMix: false,
-            isImgLoading: false
+            isImgLoading: false,
+            isSaved: true
         }
     },
     mounted() {
@@ -194,12 +197,14 @@ export default {
             msg.action = "changeCoeff";
             msg.params = params;
             this.sendEditAction(msg);
+            this.isSaved = false;
         },
         saveLatent() {
             let msg = {};
             msg.action = "saveLatent";
             msg.params = {};
             this.sendEditAction(msg);
+            this.isSaved = true;
         },
         randomize() {
             let msg = {};
@@ -208,6 +213,7 @@ export default {
             this.sendEditAction(msg);
             this.clearStore();
             this.isImgLoading = true;
+            this.isSaved = true;
         },
         searchImg() {
             let msg = {};

@@ -7,6 +7,7 @@ const state = {
     count: 1,
     galleryImgs: null,
     galleryMixImgs: null,
+    isMixedLocked: true,
     cleared: null
 }
 
@@ -65,8 +66,8 @@ function handleReceivedGallery(content, commit) {
 const actions = {
     connectServer({commit, state}, config) {
         console.log("connecting server");
-        let SERVER_URL = "52.32.63.39";
-        // SERVER_URL = "localhost"
+        let SERVER_URL = "34.214.173.193";
+        SERVER_URL = "localhost"
         let socket = io.connect(SERVER_URL+':5000');
         socket.on('connect',()=>{
             console.log("connected");

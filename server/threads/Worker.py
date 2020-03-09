@@ -50,6 +50,7 @@ class Worker(threading.Thread):
             if payload.broadcastToAll:
                 print("broadcastToAll")
                 self.socketio.emit('General', payload)
+                return
         self.socketio.emit('General', payload, room = payload.id)
 
     def stop(self):

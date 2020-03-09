@@ -3,13 +3,15 @@
   <div class="loading">
       <i v-if="isGalleryLoading" class='fas fa-spinner fa-spin fa-fw'></i> 
   </div>
-  <div class="gallery" id="gallery">
+  <div>
+    <div class="gallery" id="gallery">
         <div v-for="(img, i) in galleryImgs" class="gallery-item">
             <div class="content" @click="openGalleryImg(img)">
                 <img :style="getHeight(i)" :src='getImgData(img)' alt="">
             </div>
         </div>
     </div>
+  </div>
 </div>
 
 </template>
@@ -21,6 +23,7 @@ import { mapState, mapActions, mapMutations } from 'vuex';
         props: ["galleryImgs"],
         watch: {
             galleryImgs() {
+                console.log("got gallery");
                 this.reshapeGallery();
             }
         },
