@@ -1,7 +1,7 @@
 <template>
 <div class="wrapper">
   <div class="loading">
-      <i v-if="isGalleryLoading" class='fas fa-spinner fa-spin fa-fw'></i> 
+      <!-- <i v-if="isGalleryLoading" class='fas fa-spinner fa-spin fa-fw'></i>  -->
   </div>
   <div>
     <div class="gallery" id="gallery">
@@ -23,7 +23,6 @@ import { mapState, mapActions, mapMutations } from 'vuex';
         props: ["galleryImgs"],
         watch: {
             galleryImgs() {
-                console.log("got gallery");
                 this.reshapeGallery();
             }
         },
@@ -35,13 +34,24 @@ import { mapState, mapActions, mapMutations } from 'vuex';
             }
         },
         computed: mapState({
-            isConnected: state => state.socketStore.isConnected
+            isConnected: state => state.socketStore.isConnected,
+            receiveGalleryAfterSave: state => state.socketStore.receiveGalleryAfterSave
         }),
         watch: {
             isConnected: {
                 handler: function(n, o) {
                     if(n) {
                         this.isGalleryLoading = true;
+                    }
+                },
+                deep: true,
+                immediate: true
+            },
+            receiveGalleryAfterSave: {
+                handler: function(n, o) {
+                    if(n) {
+                        // this.$store.state.socketStore.receiveGalleryAfterSave = false;
+                        // console.log("receiveGalleryAfterSave ", n);
                     }
                 },
                 deep: true,

@@ -125,7 +125,7 @@ ul.ks-cboxtags li input[type="checkbox"]:checked + label::before {
 }
 
 ul.ks-cboxtags li input[type="checkbox"]:checked + label {
-    border: 2px solid #1bdbf8;
+    // border: 2px solid #1bdbf8;
     background-color: #f31a1ed1;
     color: #fff;
     transition: all .2s;

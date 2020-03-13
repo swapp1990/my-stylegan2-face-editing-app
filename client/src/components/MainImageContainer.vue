@@ -15,7 +15,12 @@
                     <!-- <input type="button" value="Rotated text" class="tab_btn" /> -->
                 </div>
                 <div v-if="showStyleMix" class="expanded-menu">
-                    <stylemix-menu></stylemix-menu>
+                    <div class="em-top">
+                        <stylemix-menu></stylemix-menu>
+                    </div>
+                    <div class="em-btm">
+
+                    </div>
                 </div>
             </div>
             <div class="menu-btm">
@@ -59,7 +64,8 @@ export default {
     computed: mapState({
         isConnected: state => state.socketStore.isConnected,
         mainFaceImg: state => state.socketStore.mainFaceImg,
-        cleared: state => state.socketStore.cleared
+        cleared: state => state.socketStore.cleared,
+        receiveGalleryAfterSave: state => state.socketStore.receiveGalleryAfterSave
     }),
     watch: {
         mainFaceImg:  {
@@ -82,6 +88,18 @@ export default {
             handler: function(n, o) {
                 if(n) {
                     this.serverConnected(n);
+                }
+            },
+            deep: true,
+            immediate: true
+        },
+        receiveGalleryAfterSave: {
+            handler: function(n, o) {
+                console.log("receiveGalleryAfterSave ", n);
+                if(n) {
+                    this.isImgLoading = false;
+                    this.$store.state.socketStore.receiveGalleryAfterSave = false;
+                    // console.log("receiveGalleryAfterSave ", n);
                 }
             },
             deep: true,
@@ -205,6 +223,7 @@ export default {
             msg.params = {};
             this.sendEditAction(msg);
             this.isSaved = true;
+            this.isImgLoading = true;
         },
         randomize() {
             let msg = {};
@@ -252,7 +271,9 @@ $dark: rgba(52, 55, 61, 0.6);
         opacity: 1;
     }
 }
-
+.fa-spinner {
+    color: $color-red;
+}
 .img-container {
     margin: 0 auto;
     margin-bottom: 0px;
@@ -356,7 +377,7 @@ $dark: rgba(52, 55, 61, 0.6);
                 }
             }
             .expanded-menu {
-                padding-top: 20px;
+                padding-top: 10px;
                 grid-area: b;
                 background: rgba(#f5f6f7, 0.3);
                 height: 50vh;
@@ -365,9 +386,12 @@ $dark: rgba(52, 55, 61, 0.6);
                 box-shadow: 1px 5px 5px rgba(black, 0.3);
                 padding-left: 10px;
                 padding-right: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
+                .em-top {
+                    height: 42vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
             }
         }
     }

@@ -73,7 +73,7 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
                 background-size: auto;
                 background-color: black;
                 &.selected {
-                    border: 3px solid #f31a1ed1;
+                    border: 2px solid #f31a1ed1;
                     border-radius: 4px;
                 }
             }

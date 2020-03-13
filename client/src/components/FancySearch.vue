@@ -1,7 +1,7 @@
 <template>
     <div class="search-box">
         <i class='fas fa-search icon'></i>
-        <input type="text" placeholder="hair is brown" @keyup="clicked" v-model="text">
+        <input type="text" placeholder="brown boy" @keyup="clicked" v-model="text">
     </div>
 </template>
 

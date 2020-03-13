@@ -6,6 +6,7 @@ const state = {
     mainFaceImg: null,
     count: 1,
     galleryImgs: null,
+    receiveGalleryAfterSave: false,
     galleryMixImgs: null,
     isMixedLocked: true,
     cleared: null
@@ -16,17 +17,17 @@ const getters = {
 
 }
 
-function handleGeneralMsg(content, commit) {
+function handleGeneralMsg(content, commit, state) {
     if(content.action) {
         if(content.action == "sendImg") {
             handleReceivedImg(content, commit);
         } else if(content.action == "sendGallery") {
-            handleReceivedGallery(content, commit);
+            handleReceivedGallery(content, commit, state);
         }
     }
 }
 
-function handleReceivedImg(content, commit) {
+function handleReceivedImg(content, commit, ) {
     content.fig.axes.forEach(a => {
         var base64Data = a.images[0].data;
         var img = "url('data:image/png;base64, "+base64Data + "')";
@@ -34,7 +35,7 @@ function handleReceivedImg(content, commit) {
     });
 }
 
-function handleReceivedGallery(content, commit) {
+function handleReceivedGallery(content, commit, state) {
     if(content.tag.includes("styleMixGallery")) {
         let galleryMixImgs = [];
         content.gallery.forEach(gi => {
@@ -49,6 +50,7 @@ function handleReceivedGallery(content, commit) {
         commit('setGalleryMixImgs', galleryMixImgs);
     } else if(content.tag === "gallery") {
         let galleryImgs = [];
+        state.receiveGalleryAfterSave = true;
         content.gallery.forEach(gi => {
             let galleryImg = {};
             galleryImg.galleryIdx = gi.id;
@@ -80,7 +82,7 @@ const actions = {
         });
         socket.on('General',(content)=>{
             console.log('General ', content.action);
-            handleGeneralMsg(content, commit);
+            handleGeneralMsg(content, commit, state);
         });
     },
     sendEditAction({commit, state}, msg) {

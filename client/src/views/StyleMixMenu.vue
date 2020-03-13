@@ -82,6 +82,9 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 isMixing: false
             }
         },
+        mounted() {
+            this.onMiximgClick(0);
+        },
         methods: {
             ... mapActions('socketStore', [
                 'sendEditAction'

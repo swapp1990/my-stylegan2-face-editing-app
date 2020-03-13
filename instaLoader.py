@@ -16,7 +16,7 @@ UNTIL = datetime(2018, 5, 2)
 #                                key=lambda p: p.likes + p.comments,
 #                                reverse=True)
 # print(posts_sorted_by_likes)
-L.download_hashtag('porsche', max_count=2000, post_filter=lambda p: (p.likes > 1000))
+L.download_hashtag('castle', max_count=2000, post_filter=lambda p: (p.likes > 10))
 
 # for post in L.get_hashtag_posts('lamborghini'):
 #     L.download_post(post, target='#lamborghini')
