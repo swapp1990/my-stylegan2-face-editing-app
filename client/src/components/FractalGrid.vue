@@ -52,6 +52,7 @@ import { mapState, mapActions, mapMutations } from 'vuex';
                     if(n) {
                         // this.$store.state.socketStore.receiveGalleryAfterSave = false;
                         // console.log("receiveGalleryAfterSave ", n);
+                        this.reshapeGallery();
                     }
                 },
                 deep: true,

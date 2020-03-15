@@ -3,11 +3,11 @@
     <div class="img-container" v-bind:style="{ 'background-image': imgUrl}">
         <div class="img-overlay-menu">
             <div class="menu-top">
-                <button type="button" @click="saveLatent" :disabled="isSaved">
+                <button type="button" @click="saveLatent" :disabled="isSaved" v-b-tooltip.hover title="Save to Gallery">
                     <i class='fas fa-save icon'></i>
                 </button>
                 <search-expand @onEnter="onSearchEnter"></search-expand>
-                <button type="button" @click="showGallery"><i class='fas fa-archive icon'></i></button>
+                <button type="button" @click="randomize" v-b-tooltip.hover title="Randomize/Reset all"><i class='fas fa-random icon'></i></button>
             </div>
             <div class="menu-side left" :class="{compact:!showStyleMix}">
                 <div class="tabs">
@@ -24,19 +24,20 @@
                 </div>
             </div>
             <div class="menu-btm">
-                <button type="button">
+                <button type="button" class="loading" v-b-tooltip.hover :title="isImgLoading?'Loading':'Loaded'">
                     <i v-if="isImgLoading" class='fas fa-spinner fa-spin icon fa-fw'></i>
                     <i v-if="!isImgLoading" class='fas fa-check fa-fw'></i>
                 </button>
                 <rangeslider class="menu-slider" id="menuSlider" :initVal="currAttrVal" :min="-15" :max="15" @changedAttr="onCoeffChange"></rangeslider>
-                <button type="button" @click="randomize"><i class='fas fa-random icon'></i></button>
+                <button type="button" @click="showGallery" v-b-tooltip.hover title="Go to Gallery"><i class='fas fa-archive icon'></i></button>
             </div>
         </div>
     </div>
     <div class="attrs-selector">
+        <span class="attrHelp">Select Attribute</span>
         <ul class="list list--buttons">
             <li v-for="attr in filteredAttr">
-                <button class="list__btn" :class="isAttrSelected(attr)" @click="changeSelectedAttr(attr)">
+                <button class="list__btn" :class="isAttrSelected(attr)" @click="changeSelectedAttr(attr)" v-b-tooltip.hover :title="attr.hoverText">
                     <i :class="getIcon(attr.icon)"></i>
                 </button>
             </li>
@@ -95,7 +96,6 @@ export default {
         },
         receiveGalleryAfterSave: {
             handler: function(n, o) {
-                console.log("receiveGalleryAfterSave ", n);
                 if(n) {
                     this.isImgLoading = false;
                     this.$store.state.socketStore.receiveGalleryAfterSave = false;
@@ -111,23 +111,23 @@ export default {
             imgUrl: "",
             selectedAttrTab: 'basic',
             attributes: [
-                {name: 'smile', coeff: 0.0, tabTag: 'basic', icon: 'far fa-smile'}, 
-                {name: 'gender', coeff: 0.0, tabTag: 'basic', icon:'fas fa-venus-mars'},
-                {name: 'age', coeff: 0.0, tabTag: 'basic', icon:'fas fa-child'},
-                {name: 'beauty', coeff: 0.0},
-                {name: 'glasses', coeff: 0.0},
-                {name: 'race_black', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-africa'},
-                {name: 'race_yellow', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-asia'},
-                {name: 'emotion_fear', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-ghost'},
-                {name: 'emotion_angry', coeff: 0.0, tabTag: 'emotion', icon:'far fa-angry'},
-                {name: 'emotion_disgust', coeff: 0.0, tabTag: 'emotion', icon:'far fa-tired'},
-                {name: 'emotion_easy', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-couch'},
-                {name: 'eyes_open', coeff: 0.0, tabTag: 'structure', icon:'fas fa-eye'},
-                {name: 'angle_horizontal', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-h'},
-                {name: 'angle_pitch', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-v'},
-                {name: 'face_shape', coeff: 0.0, tabTag: 'structure', icon:'fas fa-weight'},
-                {name: 'height', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-height'},
-                {name: 'width', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-width'},
+                {name: 'smile', coeff: 0.0, tabTag: 'basic', icon: 'far fa-smile', hoverText: 'sad -> smile'}, 
+                {name: 'gender', coeff: 0.0, tabTag: 'basic', icon:'fas fa-venus-mars', hoverText: 'male -> female'},
+                {name: 'age', coeff: 0.0, tabTag: 'basic', icon:'fas fa-child', hoverText: 'young -> old'},
+                {name: 'race_black', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-africa', hoverText: 'black -> brown -> white'},
+                {name: 'race_yellow', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-asia', hoverText: 'asian -> white'},
+                {name: 'beauty', coeff: 0.0, tabTag: 'basic', icon:'fas fa-gem', hoverText: 'no makeup -> makeup'},
+                {name: 'glasses', coeff: 0.0, tabTag: 'basic', icon:'fas fa-glasses', hoverText: 'no glasses -> glasses'},
+                {name: 'emotion_fear', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-ghost', hoverText: 'scared -> calm'},
+                {name: 'emotion_angry', coeff: 0.0, tabTag: 'emotion', icon:'far fa-angry', hoverText: 'angry -> happy'},
+                {name: 'emotion_disgust', coeff: 0.0, tabTag: 'emotion', icon:'far fa-tired', hoverText: 'disgusted -> happy'},
+                {name: 'emotion_easy', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-couch', hoverText: 'neutral -> happy'},
+                {name: 'eyes_open', coeff: 0.0, tabTag: 'structure', icon:'fas fa-eye', hoverText: 'eyes closed -> open'},
+                {name: 'angle_horizontal', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-h', hoverText: 'face orientation right -> left'},
+                {name: 'angle_pitch', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-v', hoverText: 'face orientation up -> down'},
+                {name: 'face_shape', coeff: 0.0, tabTag: 'structure', icon:'fas fa-weight', hoverText: 'face shape slant -> rounded'},
+                {name: 'height', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-height', hoverText: 'face shape short -> elongated'},
+                {name: 'width', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-width', hoverText: 'face shape thin -> fat'},
             ],
             filteredAttr: [],
             currSelectedAttr: null,
@@ -271,6 +271,9 @@ $dark: rgba(52, 55, 61, 0.6);
         opacity: 1;
     }
 }
+.loading {
+    cursor: default !important;
+}
 .fa-spinner {
     color: $color-red;
 }
@@ -397,10 +400,19 @@ $dark: rgba(52, 55, 61, 0.6);
     }
 }
 .attrs-selector {
+    .attrHelp {
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #e9c9a9;
+        // font-family: 'Dancing Script'
+        @media only screen and (max-width: 640px) {
+            display:none;
+        }
+    }
     margin: 0 auto;
     .list {
         @media only screen and (max-width: 640px) {
-            margin-top: 20px;
+            margin-top: 15px;
         }
         padding: 0;
         list-style-type: none;

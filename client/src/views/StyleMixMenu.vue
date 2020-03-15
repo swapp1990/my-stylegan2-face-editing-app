@@ -1,5 +1,8 @@
 <template>
     <div class="mixwrapper">
+        <div class="topItem">
+            <input type="button" value="Style Mixing" class="header loading" @click="showStyleMix=!showStyleMix"/>
+        </div>
         <div class="item1 thinScroll">
             <checkbox-picker :initMax="5" v-on:checkedInit="onCheckedInit" v-on:checked="onMixLayerPicked"></checkbox-picker>
         </div>
@@ -8,11 +11,11 @@
         </div>
         <div class="item3">
             <div class="bar">
-                <button type="button" class="lockCls"> 
+                <button type="button" class="lockCls" v-b-tooltip.hover :title="isLocked?'Locked Current Style':'Click to lock this style'"> 
                 <i v-if="!isLocked" class='fas fa-lock-open fa-fw' @click="lockMixStyle"></i> 
                 <i v-if="isLocked" class='fas fa-lock fa-fw'></i> 
                 </button>
-                <button type="button" class="lockCls"> 
+                <button type="button" class="lockCls loading" v-b-tooltip.hover :title="isMixing?'Mixing':'Completed'"> 
                     <i v-if="!isMixing" class='fas fa-check fa-fw'></i> 
                     <i v-if="isMixing" class='fas fa-spinner fa-spin fa-fw'></i> 
                 </button>
@@ -144,8 +147,32 @@ $red: #d30320;
     grid-gap: 5px;
     grid-auto-rows: auto;
     grid-template-areas: 
+        "t t"
         "a b"
         "c c";
+    .topItem {
+        grid-area: t;
+        height: inherit;
+        @media only screen and (max-width: 640px) {
+            height: 0 !important;
+            display: none;
+        }
+        .header {
+            background: rgba(#1e1e1f, 0.7);
+            outline: none;
+            border: none;
+            border-radius: 5rem;
+            cursor: pointer;
+            // -webkit-transform:rotate(90deg);
+            height: 30px;
+            width: 120px;
+            font-size: 15px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #e9c9a9;
+            font-family: 'Dancing Script'
+        }
+    }
     .item1 {
         grid-area: a;
         overflow-y: scroll;
@@ -171,6 +198,9 @@ $red: #d30320;
     background: transparent;
     outline: none;
     border: none;
+}
+.loading {
+    cursor: default !important;
 }
 .thinScroll::-webkit-scrollbar-track {
     -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);

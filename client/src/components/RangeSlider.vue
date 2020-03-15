@@ -2,11 +2,11 @@
 <div class="frame">
 	<div class="range">
 		<div class="p-1">
-			<button type="button" class="transBtn" @click="decCoeff()"><i class='fas fa-minus'></i></button>
+			<button type="button" class="transBtn" @click="decCoeff()" v-b-tooltip.hover title="Decrease Attribute Weight"><i class='fas fa-minus'></i></button>
 		</div>
 		<input type="range" :min="min" :max="max" step="0.25" v-model="currAttrVal_l" @change="attrChanged">
 		<div class="p-1">
-			<button type="button" class="transBtn" @click="incCoeff()"><i class='fas fa-plus'></i></button>
+			<button type="button" class="transBtn" @click="incCoeff()" v-b-tooltip.hover title="Increase Attribute Weight"><i class='fas fa-plus'></i></button>
 		</div>
 	</div>
 </div>

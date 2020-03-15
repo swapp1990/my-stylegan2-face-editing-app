@@ -4,7 +4,7 @@
     <li v-for="val in values">
         <input type="checkbox" :id="val.id" v-model='val.checked' @change="changeVals()">
         <!-- <label :for="val.id" @click="clickOnLabel(val)">{{val.id}}</label> -->
-        <label @click="clickOnLabel(val)">{{val.id}}</label>
+        <label @click="clickOnLabel(val)" v-b-tooltip.hover :title="val.hoverText">{{val.id}}</label>
     </li>
   </ul>
 </div>
@@ -36,7 +36,18 @@
                     if(i < this.initMax) {
                         checkedVal = true;
                     }
-                    this.values.push({id: i, checked: checkedVal})
+                    let text = 'Mix Face Shape and Orientation'
+                    if (i > 3) {
+                        text = 'Mix Hairstyles and Hair Color'
+                    } 
+                    if(i > 7) {
+                        text = 'Mix Face Texture'
+                    }
+                    if(i > 10) {
+                        text = 'Mix Finer Details'
+                    }
+
+                    this.values.push({id: i, checked: checkedVal, hoverText: text})
                 }
                 this.$emit('checkedInit', this.values);
             },

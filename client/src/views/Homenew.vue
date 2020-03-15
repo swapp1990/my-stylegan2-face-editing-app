@@ -22,7 +22,7 @@
             <div class="panel-btm">
                 <ul class="list list--buttons">
                     <li v-for="attrTab in attributeTabs">
-                        <button class="tab__btn" :class="isAttrTabSelected(attrTab)" @click="changeSelectedTab(attrTab)">
+                        <button class="tab__btn" :class="isAttrTabSelected(attrTab)" @click="changeSelectedTab(attrTab)" v-b-tooltip.hover :title="attrTab.hoverText">
                         <i class='fas' v-bind:class="attrTab.icon"></i></button>
                     </li>
                 </ul>
@@ -79,9 +79,9 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             return {
                 //face editing
                 attributeTabs: [
-                    {name: 'basic', icon: 'fa-dna'},
-                    {name: 'emotion', icon: 'fa-grin-beam'},
-                    {name: 'structure', icon: 'fa-hammer'}
+                    {name: 'basic', icon: 'fa-dna', hoverText: 'basic'},
+                    {name: 'emotion', icon: 'fa-grin-beam', hoverText: 'emotions'},
+                    {name: 'structure', icon: 'fa-hammer', hoverText: 'structure'}
                 ],
                 selectedAttrTab: 'basic',
                 filteredAttr: [],

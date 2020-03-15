@@ -1,7 +1,7 @@
 <template>
     <div class="search-box">
-        <i class='fas fa-search icon'></i>
-        <input type="text" placeholder="brown boy" @keyup="clicked" v-model="text">
+        <input ref="inp" type="text" placeholder="brown boy" @keyup="clicked" v-model="text">
+        <div ref="icon" class='fas fa-search icon' @click="clickedIcon"></div>
     </div>
 </template>
 
@@ -15,13 +15,18 @@
             }
         },
         mounted() {
-            
         },
         methods: {
             clicked(e) {
-                // console.log(this.text);
                 if(e.key == "Enter") {
                     this.$emit("onEnter", this.text);
+                }
+            },
+            clickedIcon() {
+                this.$refs.inp.focus();
+                if(this.text != "") {
+                    this.$emit("onEnter", this.text);
+                    this.text = "";
                 }
             }
         }
@@ -80,9 +85,11 @@ $shadow-flip: $shadow-tl $dark inset, $shadow-br $white inset;
         }
         .icon {
             position: absolute;
-            pointer-events: none;
-            right: 10px;
-            top: 8px;
+            // pointer-events: none;
+            width: 30px;
+            height: 30px;
+            right: 4px;
+            top: 7px;
         }
     }
 </style>
