@@ -283,7 +283,7 @@ $dark: rgba(52, 55, 61, 0.6);
     width: 100%;
     height: 65vh;
     @media only screen and (max-height: 800px) {
-        height: 67vh;
+        height: 65vh;
     }
     background-repeat: no-repeat;
     background-size: auto;
@@ -300,7 +300,7 @@ $dark: rgba(52, 55, 61, 0.6);
         height: 65vh;
         @media only screen and (max-height: 800px) {
             height: 70vh;
-            padding-top: 30px;
+            padding-top: 20px;
             padding-bottom: 20px;
         }
         @media only screen and (max-width: 640px) {
