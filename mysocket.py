@@ -27,6 +27,8 @@ stylegan_encode = None
 users = []
 
 def runServer():
+    workerCls.clear()
+    users = []
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
 
 @socketio.on('connect')
@@ -53,7 +55,9 @@ def disconnect():
 @socketio.on('set-session')
 def set_session(data):
     print(data, request.sid)
-    users.append({"user": data['user'], "sid": request.sid})
+    if(data['user'] != 'anon') {
+        users.append({"user": data['user'], "sid": request.sid})
+    }
     print(users)
     stylegan_thread = sg_encode.SGEThread(request.sid)
     threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)

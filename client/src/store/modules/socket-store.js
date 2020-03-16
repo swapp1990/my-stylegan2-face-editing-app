@@ -66,7 +66,7 @@ function handleReceivedGallery(content, commit, state) {
 
 // actions
 const actions = {
-    connectServer({commit, state}, config) {
+    connectServer({commit, state}, username) {
         console.log("connecting server");
         let SERVER_URL = "34.214.173.193";
         // SERVER_URL = "localhost"
@@ -74,6 +74,7 @@ const actions = {
         socket.on('connect',()=>{
             console.log("connected");
             commit('setSocket', socket);
+            state.username = username;
             socket.emit('set-session', {"user": state.username});
             state.isConnected = true
         });

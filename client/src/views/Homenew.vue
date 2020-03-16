@@ -1,5 +1,10 @@
 <template>
 <div class="wrapper">
+    <b-modal id="login-modal" hide-footer title="Login">
+        <div>Please enter user name or create a new one </div>
+        username: <input type="text" v-model="username">
+        <b-button class="mt-3" variant="outline-danger" block @click="hideModal">Ok</b-button>
+    </b-modal>
     <div class="wrapper-grid">
         <div class="header">
             <logoHeading></logoHeading>
@@ -77,6 +82,7 @@ import { mapState, mapActions, mapMutations } from 'vuex'
         },
         data() {
             return {
+                username: "",
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna', hoverText: 'basic'},
@@ -111,8 +117,11 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             }
         },
         mounted() {
+            // if(!this.isConnected) {
+            //     this.connectServer();
+            // }
             if(!this.isConnected) {
-                this.connectServer();
+                this.$bvModal.show('login-modal')
             }
         },
         methods: {
@@ -120,6 +129,13 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 'connectServer',
                 'sendEditAction'
             ]),
+            hideModal() {
+                console.log(this.username);
+                if(this.username !== "" && this.username.length < 10) {
+                    this.$bvModal.hide('login-modal');
+                    this.connectServer(this.username);
+                }
+            },
             getTabClass(attrTab) {
                 if(attrTab.name === this.selectedAttrTab) {
                     return "attrTabSelected";
