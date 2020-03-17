@@ -27,9 +27,9 @@ stylegan_encode = None
 users = []
 
 def runServer():
-    workerCls.clear()
     users = []
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    workerCls.clear()
 
 @socketio.on('connect')
 def connect():
@@ -46,10 +46,11 @@ def connect():
 
 @socketio.on('disconnect')
 def disconnect():
-    print("disconnect")
-    print(request.sid)
+    print("disconnect ", request.sid)
     global users
     users = [x for x in users if x['sid'] not in [request.sid]]
+    msg = EasyDict({'id': request.sid, 'close': 'shutdown', 'params': {}})
+    workerCls.broadcast_event(EasyDict(msg))
     print("users ", len(users))
 
 @socketio.on('set-session')
@@ -68,12 +69,19 @@ def set_session(data):
     msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
     workerCls.broadcast_event(EasyDict(msg))
     #Send saved gallery
-    msg = EasyDict({'id': request.sid, 'action': 'sendGallery', 'params': {}})
+    msg = EasyDict({'id': request.sid, 'action': 'sendGallery', 'params': {'init': True}})
     workerCls.broadcast_event(EasyDict(msg))
 
 @socketio.on('editAction')
 def editActions(actionData):
     print('editAction ', actionData.keys())
+    msg = EasyDict(actionData)
+    msg.id = request.sid
+    workerCls.broadcast_event(msg)
+
+@socketio.on('chatAction')
+def editActions(actionData):
+    print('chatAction ', actionData.keys())
     msg = EasyDict(actionData)
     msg.id = request.sid
     workerCls.broadcast_event(msg)

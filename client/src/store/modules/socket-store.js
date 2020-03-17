@@ -8,6 +8,7 @@ const state = {
     galleryImgs: null,
     receiveGalleryAfterSave: false,
     galleryMixImgs: null,
+    chatsArr: [{'user': 'anon', 'chatTxt': 'Hello!'}, {'user': 'anon', 'chatTxt': 'How are you?'}],
     isMixedLocked: true,
     cleared: null
 }
@@ -23,11 +24,19 @@ function handleGeneralMsg(content, commit, state) {
             handleReceivedImg(content, commit);
         } else if(content.action == "sendGallery") {
             handleReceivedGallery(content, commit, state);
+        } else if(content.action =="gotNewChat") {
+            handleChats(content, commit, state);
         }
     }
 }
 
-function handleReceivedImg(content, commit, ) {
+function handleChats(content, commit, state) {
+    commit('setChats', content.chats);
+    console.log("gotNewChat ", content.chats);
+
+}
+
+function handleReceivedImg(content, commit, state) {
     content.fig.axes.forEach(a => {
         var base64Data = a.images[0].data;
         var img = "url('data:image/png;base64, "+base64Data + "')";
@@ -68,8 +77,8 @@ function handleReceivedGallery(content, commit, state) {
 const actions = {
     connectServer({commit, state}, username) {
         console.log("connecting server");
-        let SERVER_URL = "34.214.173.193";
-        // let SERVER_URL = "localhost"
+        // let SERVER_URL = "34.214.173.193";
+        let SERVER_URL = "localhost"
         let socket = io.connect(SERVER_URL+':5000');
         socket.on('connect',()=>{
             console.log("connected");
@@ -91,6 +100,18 @@ const actions = {
             state.socket.emit('editAction', msg);
         }
     },
+    sendChatToServer({commit, state}, msg) {
+        if(state.username) {
+            let chatMsg = {};
+            let params = {'user': state.username, 'chatTxt': msg};
+            chatMsg.action = 'sendChat';
+            chatMsg.params = params;
+            if(state.socket) {
+                state.socket.emit('chatAction', chatMsg);
+            }
+            console.log('sendChatToServer', state.username); 
+        }
+    },
     clearStore({commit, state}) {
         state.cleared = true;
     }
@@ -110,6 +131,9 @@ const mutations = {
     setGalleryImgs(state, imgArr) {
         state.galleryImgs = imgArr;
     },
+    setChats(state, chatsArr) {
+        state.chatsArr = chatsArr;
+    }
 }
 
 export default {

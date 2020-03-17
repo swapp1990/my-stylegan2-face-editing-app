@@ -20,6 +20,7 @@ import faceMicrosoft as faceMicro
 
 network_pkl = 'cache/generator_model-stylegan2-config-f.pkl'
 facial_attributes_list = 'https://drive.google.com/uc?id=1xMM3AFq0r014IIhBLiMCjKJJvbhLUQ9t'
+chats = []
 
 class SGEThread():
     def __init__(self, threadId = 0):
@@ -39,6 +40,10 @@ class SGEThread():
         #Gallery
         self.w_src_gallery_list = []
         self.gallery_total = 15
+        self.broadcastGallery = True
+
+        #Chats
+        # self.chats = []
     
         self.call_func_names = {
             'generateRandomImg': self.generateRandomSrcImg,
@@ -48,6 +53,7 @@ class SGEThread():
             'sendSearchedImages': self.generateSearchedImgs,
             'saveLatent': self.saveLatent,
             'sendGallery': self.sendGallery,
+            'sendChat': self.gotNewChat,
             'mixStyleImg': self.mixStyleImg,
             'send_wSrc': self.got_wSrc,
             'send_GImgs': self.got_GImgs,
@@ -151,11 +157,17 @@ class SGEThread():
         output.close()
 
         time.sleep(0.5)
-        self.sendSavedGallery()
+        self.sendSavedGallery(broadcast=False)
     
     def sendGallery(self, params=None):
         print('sendGallery')
-        self.sendSavedGallery()
+        self.sendSavedGallery(broadcast=False)
+
+    def gotNewChat(self, params=None):
+        print('sendChats ', params)
+        global chats
+        chats.append({'user': params.user, 'chatTxt': params.chatTxt})
+        self.broadcastChatToClient()
   
     def sendStyleMixGallery(self):
         outParams = EasyDict({})
@@ -312,7 +324,8 @@ class SGEThread():
         self.selected_attr = attrName
         self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
 
-    def sendSavedGallery(self):
+    def sendSavedGallery(self, broadcast=True):
+        self.broadcastGallery = broadcast
         pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
         savedAttrs = pickle.load(pkl_file)
         pkl_file.close()
@@ -337,7 +350,7 @@ class SGEThread():
             mp_fig = self.getImageFig(resImg)
             galleryImgs.append({'id': idx, 'mp_fig': mp_fig})
         payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': tag}
-        broadcastToAll = True
+        broadcastToAll = self.broadcastGallery
         if tag=='styleMixGallery':
             broadcastToAll = False
         print("broadcastToClient ", broadcastToAll, tag)
@@ -368,6 +381,12 @@ class SGEThread():
         plt.close('all')
         payload = {'action': 'sendImg', 'fig': mp_fig, 'tag': tag, 'filename': filename}
         self.broadcastToClient(EasyDict(payload))
+    
+    def broadcastChatToClient(self):
+        global chats
+        print("chats len ", len(chats))
+        payload = {'action': 'gotNewChat', 'chats': chats}
+        self.broadcastToClient(EasyDict(payload), broadcastToAll=True)
     
     def broadcastToClient(self, payload, broadcastToAll=False):
         payload.id = self.threadId
@@ -438,7 +457,7 @@ class StyleGanEncoding():
 
         self.loadAttributeLabelMapping()
         self.loadAllDirections()
-        self.resetSavedLatents()
+        # self.resetSavedLatents()
     
     def runRandomMapping(self, params=None):
         print("runRandomMapping ", params)

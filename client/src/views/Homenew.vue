@@ -21,6 +21,7 @@
         </div>
         <div class="side-menu-r">
             <div class="panel-side right">
+                <chats-container></chats-container>
             </div>
         </div>
         <div class="btm-menu">
@@ -51,6 +52,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
 import scrollGallery from '@/components/VerticalScrollImg.vue';
 import checkboxPicker from '@/components/CheckboxPicker.vue';
 import stylemixMenu from '@/views/StyleMixMenu.vue';
+import chatsContainer from '@/views/ChatsContainer.vue';
 import { mapState, mapActions, mapMutations } from 'vuex'
 
     export default {
@@ -65,7 +67,8 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             fractalGrid: fractalGrid,
             scrollGallery: scrollGallery,
             checkboxPicker: checkboxPicker,
-            stylemixMenu: stylemixMenu
+            stylemixMenu: stylemixMenu,
+            chatsContainer: chatsContainer
         },
         computed: mapState({
             galleryImgs_store: state => state.socketStore.galleryImgs,
@@ -351,7 +354,7 @@ $max-body-w: 600px;
     }
     &.right {
         margin-left: 0;
-        display: none;
+        // display: none;
         @media only screen and (max-width: 640px) {
             display: none;
         }

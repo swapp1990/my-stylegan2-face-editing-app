@@ -31,6 +31,9 @@ class Worker(threading.Thread):
                 # print(self, 'received a message', data['log'], str(data['id']))
                 if self.id == data['id']:
                     self.emitLogs(data)
+            elif 'close' in data.keys():
+                if self.id == data['id']:
+                    self.stop()
 
     def doWork(self, payload):
         # print("do work ", self.id)
@@ -56,7 +59,10 @@ class Worker(threading.Thread):
     def stop(self):
         print("stop ", self.id)
         self.mailbox.put("shutdown")
-        self.join()
+        # self.join()
+        active_queues.remove(self.mailbox)
+        active_threads.remove(self)
+        print("active_queues ", len(active_queues), "active_threads", len(active_threads))
         
 def clear():
     active_queues = []
