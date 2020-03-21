@@ -11,6 +11,7 @@ from operator import itemgetter
 from server.threads import Worker as workerCls
 import sg_encode
 from easydict import EasyDict
+import threading
 
 # instantiate the app
 app = Flask(__name__)
@@ -41,6 +42,7 @@ def connect():
         stylegan_encode = sg_encode.StyleGanEncoding()
         threadG = workerCls.Worker(0, stylegan_encode, socketio=socketio)
         threadG.start()
+        print("connect init")
         msg = {'id': 0, 'action': 'initApp', 'params': {}}
         workerCls.broadcast_event(EasyDict(msg))
 
@@ -63,14 +65,20 @@ def set_session(data):
         return
     print(users)
     stylegan_thread = sg_encode.SGEThread(request.sid)
-    threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)
-    threadUser.start()
-    #Send first random img to each client seperately as soon as they login
-    msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
-    workerCls.broadcast_event(EasyDict(msg))
-    #Send saved gallery
-    msg = EasyDict({'id': request.sid, 'action': 'sendGallery', 'params': {'init': True}})
-    workerCls.broadcast_event(EasyDict(msg))
+    if threading.active_count() < 50:
+        threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)
+        threadUser.start()
+        #Send first random img to each client seperately as soon as they login
+        msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
+        workerCls.broadcast_event(EasyDict(msg))
+        #Send saved gallery
+        msg = EasyDict({'id': request.sid, 'action': 'sendGallery', 'params': {'init': True}})
+        workerCls.broadcast_event(EasyDict(msg))
+        #Send chats
+        msg = EasyDict({'id': request.sid, 'action': 'sendChats', 'params': {}})
+        workerCls.broadcast_event(EasyDict(msg))
+    else:
+        print("cannot start new thread")
 
 @socketio.on('editAction')
 def editActions(actionData):

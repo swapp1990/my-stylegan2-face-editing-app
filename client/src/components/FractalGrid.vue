@@ -85,13 +85,11 @@ import { mapState, mapActions, mapMutations } from 'vuex';
                 var getHeight = function (item) { return item.querySelector('.content').getBoundingClientRect().height; };
                 var gallery = document.querySelector('#gallery');
                 gallery.querySelectorAll('img').forEach(function (item) {
-                  item.addEventListener('load', function () {
-                      var altura = getVal(gallery, 'grid-auto-rows');
-                      var gap = getVal(gallery, 'grid-row-gap');
-                      var gitem = item.parentElement.parentElement;
-                      var spanend = Math.ceil((getHeight(gitem) + gap) / (altura + gap));
-                      gitem.style.gridRowEnd = "span " + spanend;
-                  })
+                    var altura = getVal(gallery, 'grid-auto-rows');
+                    var gap = getVal(gallery, 'grid-row-gap');
+                    var gitem = item.parentElement.parentElement;
+                    var spanend = Math.ceil((getHeight(gitem) + gap) / (altura + gap));
+                    gitem.style.gridRowEnd = "span " + spanend;
                 });
                 // this.isGalleryLoading = false;
             },

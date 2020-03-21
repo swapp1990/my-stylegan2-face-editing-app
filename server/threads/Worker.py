@@ -6,6 +6,7 @@ active_threads = []
 class Worker(threading.Thread):
     def __init__(self, id, modelCls=None, socketio=None):
         threading.Thread.__init__(self)
+        print("active_count ", threading.active_count())
         self.mailbox = queue.Queue()
         self.id = id
         self.modelCls = modelCls
@@ -62,7 +63,7 @@ class Worker(threading.Thread):
         # self.join()
         active_queues.remove(self.mailbox)
         active_threads.remove(self)
-        print("active_queues ", len(active_queues), "active_threads", len(active_threads))
+        print("active_queues ", len(active_queues), "active_threads", len(active_threads), "active_count ", threading.active_count())
         
 def clear():
     active_queues = []

@@ -54,6 +54,7 @@ class SGEThread():
             'saveLatent': self.saveLatent,
             'sendGallery': self.sendGallery,
             'sendChat': self.gotNewChat,
+            'sendChats': self.sendChats,
             'mixStyleImg': self.mixStyleImg,
             'send_wSrc': self.got_wSrc,
             'send_GImgs': self.got_GImgs,
@@ -167,6 +168,9 @@ class SGEThread():
         print('sendChats ', params)
         global chats
         chats.append({'user': params.user, 'chatTxt': params.chatTxt})
+        self.broadcastChatToClient()
+    
+    def sendChats(self, params=None):
         self.broadcastChatToClient()
   
     def sendStyleMixGallery(self):
