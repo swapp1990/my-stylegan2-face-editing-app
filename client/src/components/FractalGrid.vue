@@ -22,9 +22,7 @@ import { mapState, mapActions, mapMutations } from 'vuex';
         name: "fractalGrid",
         props: ["galleryImgs"],
         watch: {
-            galleryImgs() {
-                this.reshapeGallery();
-            }
+            
         },
         data() {
             return {
@@ -47,12 +45,12 @@ import { mapState, mapActions, mapMutations } from 'vuex';
                 deep: true,
                 immediate: true
             },
-            receiveGalleryAfterSave: {
+            galleryImgs: {
                 handler: function(n, o) {
                     if(n) {
-                        // this.$store.state.socketStore.receiveGalleryAfterSave = false;
-                        // console.log("receiveGalleryAfterSave ", n);
-                        this.reshapeGallery();
+                        setTimeout(() => {
+                            this.reshapeGallery();
+                        }, 1000);
                     }
                 },
                 deep: true,

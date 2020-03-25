@@ -86,7 +86,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
 import logoHeading from '@/components/LogoHeading.vue';
 import scrollGallery from '@/components/VerticalScrollImg.vue';
 import checkboxPicker from '@/components/CheckboxPicker.vue';
-
+import { mapState, mapActions, mapMutations } from 'vuex'
     export default {
         name: "neuMenu",
         components: {
@@ -100,11 +100,14 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
             scrollGallery: scrollGallery
         },
         computed: {
+            ...mapState({
+            })
         },
         data() {
             return {
                 //socket
                 connected: false,
+                firstLoad: false,
                 socket: null,
                 logs: [],
                 training: true,
@@ -166,11 +169,31 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
                 selectedImgIdx: 0
             }
         },
+        watch: {
+        mainFaceImg:  {
+            handler: function(n, o) {
+                if(!this.firstLoad) {
+                    console.log("first load");
+                    let msg = {};
+                    msg.action = "sendGallery";
+                    msg.params = params;
+                    this.sendEditAction(msg);
+                    console.log("send gallery");
+                }
+                this.firstLoad = true;
+            },
+            deep: true,
+            immediate: true
+        },
+        },
         mounted(){
             this.connectSocket();
             this.init();
         },
         methods: {
+            ... mapActions('socketStore', [
+                'sendEditAction'
+            ]),
             getIcon(iconClass) {
                 return iconClass + " fa-lg fa-fw";
             },

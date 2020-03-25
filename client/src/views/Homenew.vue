@@ -72,7 +72,8 @@ import { mapState, mapActions, mapMutations } from 'vuex'
         },
         computed: mapState({
             galleryImgs_store: state => state.socketStore.galleryImgs,
-            isConnected: state => state.socketStore.isConnected
+            isConnected: state => state.socketStore.isConnected,
+            mainFaceImg: state => state.socketStore.mainFaceImg,
         }),
         watch: {
             galleryImgs_store:  {
@@ -81,11 +82,25 @@ import { mapState, mapActions, mapMutations } from 'vuex'
                 },
                 deep: true,
                 immediate: true
-            }
+            },
+            mainFaceImg:  {
+                handler: function(n, o) {
+                    if(n != null && !this.firstLoad) {
+                        let msg = {};
+                        msg.action = "sendGallery";
+                        msg.params = {};
+                        this.sendEditAction(msg);
+                        this.firstLoad = true;
+                    }
+                },
+                deep: true,
+                immediate: true
+            },
         },
         data() {
             return {
                 username: "",
+                firstLoad: false,
                 //face editing
                 attributeTabs: [
                     {name: 'basic', icon: 'fa-dna', hoverText: 'basic'},

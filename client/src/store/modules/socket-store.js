@@ -77,8 +77,8 @@ function handleReceivedGallery(content, commit, state) {
 const actions = {
     connectServer({commit, state}, username) {
         console.log("connecting server");
-        // let SERVER_URL = "34.214.173.193";
-        let SERVER_URL = "localhost"
+        let SERVER_URL = "34.214.173.193";
+        // let SERVER_URL = "localhost"
         let socket = io.connect(SERVER_URL+':5000');
         socket.on('connect',()=>{
             console.log("connected");
