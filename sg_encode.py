@@ -30,6 +30,7 @@ class SGEThread():
 
         self.selected_attr = self.attr_list[0]
         self.threadId = threadId
+        self.username = ""
 
         self.w_src = None
         self.w_src_orig = None
@@ -46,6 +47,7 @@ class SGEThread():
         # self.chats = []
     
         self.call_func_names = {
+            'setUser': self.setUser,
             'generateRandomImg': self.generateRandomSrcImg,
             'randomize': self.generateRandomSrcImg,
             'changeCoeff': self.changeCoeff_clipped,
@@ -53,6 +55,7 @@ class SGEThread():
             'sendSearchedImages': self.generateSearchedImgs,
             'saveLatent': self.saveLatent,
             'sendGallery': self.sendGallery,
+            'loveGalleryImage':self.loveGalleryImage,
             'sendChat': self.gotNewChat,
             'sendChats': self.sendChats,
             'mixStyleImg': self.mixStyleImg,
@@ -69,6 +72,10 @@ class SGEThread():
         self.sendStyleMixGallery()
 
     ############################## Client Edit Actions ###################
+    def setUser(self, params=None):
+        print("Thread setUser ", params)
+        self.username = params.username
+
     def generateRandomSrcImg(self, params=None):
         print("Thread generateRandomSrcImg ", params)
         outParams = EasyDict({})
@@ -86,7 +93,7 @@ class SGEThread():
         g_images = params.G_imgs
         if "tag" in params.keys():
             if params.tag == "gallery":
-                self.sendGalleryToClient(g_images)
+                self.sendGalleryToClient(g_images, params.input_params)
         else:
             resImg = PIL.Image.fromarray(g_images[0], 'RGB')
             resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
@@ -159,10 +166,6 @@ class SGEThread():
 
         time.sleep(0.5)
         self.sendSavedGallery(broadcast=False)
-    
-    def sendGallery(self, params=None):
-        print('sendGallery')
-        self.sendSavedGallery(broadcast=False)
 
     def gotNewChat(self, params=None):
         print('sendChats ', params)
@@ -198,18 +201,74 @@ class SGEThread():
         self.w_src = self.w_src_mix
         self.w_src_curr = self.w_src_mix
     
+    #################### Gallery Actions ################
+    def sendGallery(self, params=None):
+        print('sendGallery')
+        self.sendSavedGallery(broadcast=False)
+
     def loadGalleryImg(self, params=None):
         print("loadGalleryImg ", params)
         galleryIdx = params.galleryIdx
-        curr_galley_list = self.getGallerySrcs()
-        if len(curr_galley_list) > 0:
-            curr_galley_list.reverse()
-            curr_galley_list = curr_galley_list[:self.gallery_total]
-            curr_wsrc_toload = curr_galley_list[galleryIdx]
+        # curr_galley_list = self.getGallerySrcs()
+        curr_gallery = self.getGalleryFull()
+        if len(curr_gallery) > 0:
+            curr_gallery.reverse()
+            curr_gallery = curr_gallery[:self.gallery_total]
+            curr_wsrc_toload = curr_gallery[galleryIdx]["wlatent"]
+            lovecount = 0
+            if curr_gallery[galleryIdx].get("lovecount"):
+                print(galleryIdx)
+                lovecount = curr_gallery[galleryIdx]["lovecount"]
             self.w_src = curr_wsrc_toload
             self.w_src_curr = curr_wsrc_toload
-            outParams = EasyDict({"w_src": curr_wsrc_toload})
+            outParams = EasyDict({"w_src": curr_wsrc_toload, "lovecount": lovecount})
             self.broadcastToMainThread("generateImgFromWSrc", outParams)
+        
+    def loveGalleryImage(self, params=None):
+        print("loveGalleryImage ", params)
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        # print(savedAttrs)
+        pkl_file.close()
+
+        idx = params.idx
+        if savedAttrs[idx].get('lovecount'):
+            if self.username not in savedAttrs[idx]['lovecount']:
+                savedAttrs[idx]['lovecount'].append(self.username)
+
+        output = open('results/savedAttrFromClient.pkl', 'wb')
+        pickle.dump(savedAttrs, output)
+        output.close()
+
+        time.sleep(0.5)
+        self.sendSavedGallery(broadcast=False)
+
+    def sendGalleryToClient(self, images, input_params=None, tag='gallery'):
+        #images
+        galleryImgs = []
+        if input_params is None:
+            for idx in range(images.shape[0]):
+                resImg = PIL.Image.fromarray(images[idx], 'RGB')
+                resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+                mp_fig = self.getImageFig(resImg)
+                galleryImgs.append({'id': idx, 'mp_fig': mp_fig})
+        else:
+            #metadata
+            metadata = input_params.images_meta
+            for idx in range(images.shape[0]):
+                metadataIdx = metadata[idx] 
+                resImg = PIL.Image.fromarray(images[idx], 'RGB')
+                resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
+                mp_fig = self.getImageFig(resImg)
+                galleryImgs.append({'id': idx, 'mp_fig': mp_fig, 'metadataIdx': metadataIdx})
+  
+        #Final gallery payload to send to client
+        payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': tag}
+        broadcastToAll = self.broadcastGallery
+        if tag=='styleMixGallery':
+            broadcastToAll = False
+        print("broadcastToClient ", broadcastToAll, tag)
+        self.broadcastToClient(EasyDict(payload), broadcastToAll=broadcastToAll)
 
     ############################## Clipping W ###################################
     def moveLatent_clipped(self,latent_vector, direction,coeff, hasAttrChanged=False):
@@ -301,6 +360,36 @@ class SGEThread():
             if idx_dict['name'] == attrName:
                 idx_dict['freeze'] = idxs
     ############################## Utils ########################################
+    def sendSavedGallery(self, broadcast=True):
+        self.broadcastGallery = broadcast
+        
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+
+        w_srsc = []
+        images_meta = []
+        for i in range(len(savedAttrs)):
+            meta = EasyDict({})
+            if savedAttrs[i].get('lovecount'):
+                meta.lovedcount = savedAttrs[i]['lovecount']
+            images_meta.append(meta)
+            w_srsc.append(savedAttrs[i]['wlatent'])
+        print("images_meta ", images_meta)
+        self.w_src_gallery_list = w_srsc
+        if len(w_srsc) > 0:
+            w_srsc.reverse()
+            w_srsc = w_srsc[:self.gallery_total]
+            w_srsc = np.asarray(w_srsc)
+            w_srsc = np.squeeze(w_srsc, axis=1)
+            outParams = EasyDict({"w_src": w_srsc, "images_meta": images_meta, "tag": "gallery"})
+            self.broadcastToMainThread("generateImgFromWSrc", outParams)
+
+    def getGalleryFull(self):
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        return savedAttrs
+
     def getGallerySrcs(self):
         pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
         savedAttrs = pickle.load(pkl_file)
@@ -327,38 +416,6 @@ class SGEThread():
     def setNewAttr(self, attrName):
         self.selected_attr = attrName
         self.direction = np.load('latent_directions/' + self.selected_attr +'.npy')
-
-    def sendSavedGallery(self, broadcast=True):
-        self.broadcastGallery = broadcast
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-
-        w_srsc = []
-        for i in range(len(savedAttrs)):
-            w_srsc.append(savedAttrs[i]['wlatent'])
-        self.w_src_gallery_list = w_srsc
-        if len(w_srsc) > 0:
-            w_srsc.reverse()
-            w_srsc = w_srsc[:self.gallery_total]
-            w_srsc = np.asarray(w_srsc)
-            w_srsc = np.squeeze(w_srsc, axis=1)
-            outParams = EasyDict({"w_src": w_srsc, "tag": "gallery"})
-            self.broadcastToMainThread("generateImgFromWSrc", outParams)
-
-    def sendGalleryToClient(self, images, tag='gallery'):
-        galleryImgs = []
-        for idx in range(images.shape[0]):
-            resImg = PIL.Image.fromarray(images[idx], 'RGB')
-            resImg = resImg.resize((self.img_size,self.img_size),PIL.Image.LANCZOS)
-            mp_fig = self.getImageFig(resImg)
-            galleryImgs.append({'id': idx, 'mp_fig': mp_fig})
-        payload = {'action': 'sendGallery', 'gallery': galleryImgs, 'tag': tag}
-        broadcastToAll = self.broadcastGallery
-        if tag=='styleMixGallery':
-            broadcastToAll = False
-        print("broadcastToClient ", broadcastToAll, tag)
-        self.broadcastToClient(EasyDict(payload), broadcastToAll=broadcastToAll)
 
     def getImageFig(self, img, imgSize=512):
         my_dpi = 96
@@ -477,7 +534,7 @@ class StyleGanEncoding():
         if "tag" in params.keys():
             if params.tag == "gallery":
                 G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-                msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs, 'tag': params.tag}}
+                msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs, 'input_params': params, 'tag': params.tag}}
         else:
             G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
             msg = {'action': 'send_GImgs', 'params': {'G_imgs': G_imgs}}

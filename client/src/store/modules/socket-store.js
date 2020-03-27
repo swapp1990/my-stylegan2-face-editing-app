@@ -6,6 +6,7 @@ const state = {
     mainFaceImg: null,
     count: 1,
     galleryImgs: null,
+    isGalleryLoading: false,
     receiveGalleryAfterSave: false,
     galleryMixImgs: null,
     chatsArr: [{'user': 'anon', 'chatTxt': 'Hello!'}, {'user': 'anon', 'chatTxt': 'How are you?'}],
@@ -24,6 +25,8 @@ function handleGeneralMsg(content, commit, state) {
             handleReceivedImg(content, commit);
         } else if(content.action == "sendGallery") {
             handleReceivedGallery(content, commit, state);
+        } else if(content.action == "sendGalleryMetadata") {
+            handleReceivedGalleryMetadata(content, commit, state);
         } else if(content.action =="gotNewChat") {
             handleChats(content, commit, state);
         }
@@ -60,6 +63,8 @@ function handleReceivedGallery(content, commit, state) {
     } else if(content.tag === "gallery") {
         let galleryImgs = [];
         state.receiveGalleryAfterSave = true;
+        console.log(content);
+        let i = 0;
         content.gallery.forEach(gi => {
             let galleryImg = {};
             galleryImg.galleryIdx = gi.id;
@@ -67,18 +72,57 @@ function handleReceivedGallery(content, commit, state) {
                 var base64Data = a.images[0].data;
                 galleryImg.png = base64Data;
             });
+            if(!galleryImg.username) {
+                galleryImg.username = "anon";
+            }
+            let metadata = content.metadata[i];
+            if(metadata) {
+                // console.log(gi.metadata);
+                if(!metadata.totalLoved) {
+                    galleryImg.lovecount = 0;
+                } else {
+                    galleryImg.lovecount = metadata.totalLoved;
+                }
+                if(metadata.isCurrUserLoved) {
+                    galleryImg.loved = true;
+                }
+                if(metadata.username) {
+                    galleryImg.username = metadata.username;
+                }
+            }
             galleryImgs.push(galleryImg);
+            i++;
         });
         commit('setGalleryImgs', galleryImgs);
+        state.isGalleryLoading = false;
     }
+}
+
+function handleReceivedGalleryMetadata(content, commit, state) {
+    // console.log(content.metadata);
+    let i = 0;
+    state.galleryImgs.forEach(img => {
+        let metadata = content.metadata[i];
+        if(!metadata.totalLoved) {
+            img.lovecount = 0;
+        } else {
+            img.lovecount = metadata.totalLoved;
+        }
+        if(metadata.isCurrUserLoved) {
+            img.loved = true;
+        } else {
+            img.loved = false;
+        }
+        i++;
+    });
 }
 
 // actions
 const actions = {
     connectServer({commit, state}, username) {
         console.log("connecting server");
-        let SERVER_URL = "34.214.173.193";
-        // let SERVER_URL = "localhost"
+        // let SERVER_URL = "34.214.173.193";
+        let SERVER_URL = "localhost"
         let socket = io.connect(SERVER_URL+':5000');
         socket.on('connect',()=>{
             console.log("connected");
@@ -97,6 +141,9 @@ const actions = {
     },
     sendEditAction({commit, state}, msg) {
         if(state.socket) {
+            if(!msg.username) {
+                msg.username = state.username;
+            }
             state.socket.emit('editAction', msg);
         }
     },

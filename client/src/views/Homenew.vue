@@ -35,7 +35,7 @@
             </div>
         </div>
         <div class="footer">
-            <fractalGrid :galleryImgs="galleryImgs"></fractalGrid>
+            <fractalGrid :galleryImgs="galleryImgs" v-on:img-clicked="onGalleryImageClicked"></fractalGrid>
         </div>
     </div>
 </div>
@@ -54,147 +54,161 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
 import stylemixMenu from '@/views/StyleMixMenu.vue';
 import chatsContainer from '@/views/ChatsContainer.vue';
 import { mapState, mapActions, mapMutations } from 'vuex'
+import Vue from 'vue';
 
-    export default {
-        name: "homenew",
-        components: {
-            imgContainer: imgContainer,
-            logoHeading: logoHeading,
-            neubox: neubox,
-            rangeslider: rangeslider,
-            socketComp: socketComp,
-            searchExpand: searchExpand,
-            fractalGrid: fractalGrid,
-            scrollGallery: scrollGallery,
-            checkboxPicker: checkboxPicker,
-            stylemixMenu: stylemixMenu,
-            chatsContainer: chatsContainer
-        },
-        computed: mapState({
-            galleryImgs_store: state => state.socketStore.galleryImgs,
-            isConnected: state => state.socketStore.isConnected,
-            mainFaceImg: state => state.socketStore.mainFaceImg,
-        }),
-        watch: {
-            galleryImgs_store:  {
-                handler: function(n, o) {
-                    this.loadGallery(n);
-                },
-                deep: true,
-                immediate: true
+export default {
+    name: "homenew",
+    components: {
+        imgContainer: imgContainer,
+        logoHeading: logoHeading,
+        neubox: neubox,
+        rangeslider: rangeslider,
+        socketComp: socketComp,
+        searchExpand: searchExpand,
+        fractalGrid: fractalGrid,
+        scrollGallery: scrollGallery,
+        checkboxPicker: checkboxPicker,
+        stylemixMenu: stylemixMenu,
+        chatsContainer: chatsContainer
+    },
+    computed: mapState({
+        galleryImgs_store: state => state.socketStore.galleryImgs,
+        isConnected: state => state.socketStore.isConnected,
+        mainFaceImg: state => state.socketStore.mainFaceImg,
+    }),
+    watch: {
+        galleryImgs_store:  {
+            handler: function(n, o) {
+                this.loadGallery(n);
             },
-            mainFaceImg:  {
-                handler: function(n, o) {
-                    if(n != null && !this.firstLoad) {
-                        let msg = {};
-                        msg.action = "sendGallery";
-                        msg.params = {};
-                        this.sendEditAction(msg);
-                        this.firstLoad = true;
-                    }
-                },
-                deep: true,
-                immediate: true
-            },
+            deep: true,
+            immediate: true
         },
-        data() {
-            return {
-                username: "",
-                firstLoad: false,
-                //face editing
-                attributeTabs: [
-                    {name: 'basic', icon: 'fa-dna', hoverText: 'basic'},
-                    {name: 'emotion', icon: 'fa-grin-beam', hoverText: 'emotions'},
-                    {name: 'structure', icon: 'fa-hammer', hoverText: 'structure'}
-                ],
-                selectedAttrTab: 'basic',
-                filteredAttr: [],
-                currAttrVal: 0,
-                attributes: [
-                    {name: 'smile', coeff: 0.0, tabTag: 'basic', icon: 'far fa-smile'}, 
-                    {name: 'gender', coeff: 0.0, tabTag: 'basic', icon:'fas fa-venus-mars'},
-                    {name: 'age', coeff: 0.0, tabTag: 'basic', icon:'fas fa-child'},
-                    {name: 'beauty', coeff: 0.0},
-                    {name: 'glasses', coeff: 0.0},
-                    {name: 'race_black', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-africa'},
-                    {name: 'race_yellow', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-asia'},
-                    {name: 'emotion_fear', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-ghost'},
-                    {name: 'emotion_angry', coeff: 0.0, tabTag: 'emotion', icon:'far fa-angry'},
-                    {name: 'emotion_disgust', coeff: 0.0, tabTag: 'emotion', icon:'far fa-tired'},
-                    {name: 'emotion_easy', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-couch'},
-                    {name: 'eyes_open', coeff: 0.0, tabTag: 'structure', icon:'fas fa-eye'},
-                    {name: 'angle_horizontal', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-h'},
-                    {name: 'angle_pitch', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-v'},
-                    {name: 'face_shape', coeff: 0.0, tabTag: 'structure', icon:'fas fa-weight'},
-                    {name: 'height', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-height'},
-                    {name: 'width', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-width'},
-                ],
-                currSelectedAttr: null,
-                galleryImgs: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-                galleryMixImgs: ["1", "2", "3", "4", "5"],
-            }
-        },
-        mounted() {
-            // if(!this.isConnected) {
-            //     this.connectServer();
-            // }
-            if(!this.isConnected) {
-                this.$bvModal.show('login-modal')
-            }
-        },
-        methods: {
-           ... mapActions('socketStore', [
-                'connectServer',
-                'sendEditAction'
-            ]),
-            hideModal() {
-                console.log(this.username);
-                if(this.username !== "" && this.username.length < 10) {
-                    this.$bvModal.hide('login-modal');
-                    this.connectServer(this.username);
+        mainFaceImg:  {
+            handler: function(n, o) {
+                if(n != null && !this.firstLoad) {
+                    let msg = {};
+                    msg.action = "sendGallery";
+                    msg.params = {};
+                    this.sendEditAction(msg);
+                    this.$store.state.socketStore.isGalleryLoading = true;
+                    this.firstLoad = true;
                 }
             },
-            getTabClass(attrTab) {
-                if(attrTab.name === this.selectedAttrTab) {
-                    return "attrTabSelected";
-                }
-                return "attrTab";
-            },
-            getIcon(iconClass) {
-                return iconClass + " fa-lg fa-fw";
-            },
-            reset() {
-
-            },
-            loadGallery(imgArr) {
-                if(imgArr == null) return;
-                this.galleryImgs = imgArr;
-            },
-            showGallery() {
-                this.$router.push('gallery');
-            },
-            isAttrSelected(attr) {
-                if(attr.name === this.currSelectedAttr.name) {
-                    return "isSelected";
-                }
-                return ""
-            },
-            isAttrTabSelected(attrTab) {
-                if(attrTab.name === this.selectedAttrTab) {
-                    return "isSelected";
-                }
-                return ""
-            },
-            changeSelectedAttr(attr) {
-                this.currSelectedAttr = attr;
-                this.currAttrVal = Number(this.currSelectedAttr.coeff);
-            },
-           changeSelectedTab(attrTab) {
-                this.selectedAttrTab = attrTab.name;
-                this.$refs.imgCont.calculateFilteredAttr(this.selectedAttrTab);
-            },
+            deep: true,
+            immediate: true
+        },
+    },
+    data() {
+        return {
+            username: "",
+            firstLoad: false,
+            //face editing
+            attributeTabs: [
+                {name: 'basic', icon: 'fa-dna', hoverText: 'basic'},
+                {name: 'emotion', icon: 'fa-grin-beam', hoverText: 'emotions'},
+                {name: 'structure', icon: 'fa-hammer', hoverText: 'structure'}
+            ],
+            selectedAttrTab: 'basic',
+            filteredAttr: [],
+            currAttrVal: 0,
+            attributes: [
+                {name: 'smile', coeff: 0.0, tabTag: 'basic', icon: 'far fa-smile'}, 
+                {name: 'gender', coeff: 0.0, tabTag: 'basic', icon:'fas fa-venus-mars'},
+                {name: 'age', coeff: 0.0, tabTag: 'basic', icon:'fas fa-child'},
+                {name: 'beauty', coeff: 0.0},
+                {name: 'glasses', coeff: 0.0},
+                {name: 'race_black', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-africa'},
+                {name: 'race_yellow', coeff: 0.0, tabTag: 'basic', icon:'fas fa-globe-asia'},
+                {name: 'emotion_fear', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-ghost'},
+                {name: 'emotion_angry', coeff: 0.0, tabTag: 'emotion', icon:'far fa-angry'},
+                {name: 'emotion_disgust', coeff: 0.0, tabTag: 'emotion', icon:'far fa-tired'},
+                {name: 'emotion_easy', coeff: 0.0, tabTag: 'emotion', icon:'fas fa-couch'},
+                {name: 'eyes_open', coeff: 0.0, tabTag: 'structure', icon:'fas fa-eye'},
+                {name: 'angle_horizontal', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-h'},
+                {name: 'angle_pitch', coeff: 0.0, tabTag: 'structure', icon:'fas fa-arrows-alt-v'},
+                {name: 'face_shape', coeff: 0.0, tabTag: 'structure', icon:'fas fa-weight'},
+                {name: 'height', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-height'},
+                {name: 'width', coeff: 0.0, tabTag: 'structure', icon:'fas fa-text-width'},
+            ],
+            currSelectedAttr: null,
+            galleryImgs: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+            galleryMixImgs: ["1", "2", "3", "4", "5"],
         }
+    },
+    mounted() {
+        // if(!this.isConnected) {
+        //     this.connectServer();
+        // }
+        if(!this.isConnected) {
+            // this.$bvModal.show('login-modal')
+            this.connectServer("anon1");
+        }
+    },
+    methods: {
+        ... mapActions('socketStore', [
+            'connectServer',
+            'sendEditAction'
+        ]),
+        onGalleryImageClicked(params) {
+            let element = this.galleryImgs[params.idx];
+            if(params.action == "love") {
+                element.loved = !element.loved;
+                Vue.set(this.galleryImgs[params.idx], 'loved', element.loved);
+                let msg = {};
+                msg.action = "loveGalleryImage";
+                msg.params =  {"idx": params.idx, "isLoved": element.loved};
+                this.sendEditAction(msg);
+            }
+        },
+        hideModal() {
+            console.log(this.username);
+            if(this.username !== "" && this.username.length < 10) {
+                this.$bvModal.hide('login-modal');
+                this.connectServer(this.username);
+            }
+        },
+        getTabClass(attrTab) {
+            if(attrTab.name === this.selectedAttrTab) {
+                return "attrTabSelected";
+            }
+            return "attrTab";
+        },
+        getIcon(iconClass) {
+            return iconClass + " fa-lg fa-fw";
+        },
+        reset() {
+
+        },
+        loadGallery(imgArr) {
+            if(imgArr == null) return;
+            this.galleryImgs = imgArr;
+        },
+        showGallery() {
+            this.$router.push('gallery');
+        },
+        isAttrSelected(attr) {
+            if(attr.name === this.currSelectedAttr.name) {
+                return "isSelected";
+            }
+            return ""
+        },
+        isAttrTabSelected(attrTab) {
+            if(attrTab.name === this.selectedAttrTab) {
+                return "isSelected";
+            }
+            return ""
+        },
+        changeSelectedAttr(attr) {
+            this.currSelectedAttr = attr;
+            this.currAttrVal = Number(this.currSelectedAttr.coeff);
+        },
+        changeSelectedTab(attrTab) {
+            this.selectedAttrTab = attrTab.name;
+            this.$refs.imgCont.calculateFilteredAttr(this.selectedAttrTab);
+        },
     }
+}
 </script>
 
 <style lang="scss" scoped>
