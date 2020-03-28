@@ -35,7 +35,7 @@ function handleGeneralMsg(content, commit, state) {
 
 function handleChats(content, commit, state) {
     commit('setChats', content.chats);
-    console.log("gotNewChat ", content.chats);
+    // console.log("gotNewChat ", content.chats);
 
 }
 
@@ -63,7 +63,7 @@ function handleReceivedGallery(content, commit, state) {
     } else if(content.tag === "gallery") {
         let galleryImgs = [];
         state.receiveGalleryAfterSave = true;
-        console.log(content);
+        // console.log(content);
         let i = 0;
         content.gallery.forEach(gi => {
             let galleryImg = {};
@@ -72,27 +72,15 @@ function handleReceivedGallery(content, commit, state) {
                 var base64Data = a.images[0].data;
                 galleryImg.png = base64Data;
             });
-            if(!galleryImg.username) {
-                galleryImg.username = "anon";
-            }
             let metadata = content.metadata[i];
             if(metadata) {
-                // console.log(gi.metadata);
-                if(!metadata.totalLoved) {
-                    galleryImg.lovecount = 0;
-                } else {
-                    galleryImg.lovecount = metadata.totalLoved;
-                }
-                if(metadata.isCurrUserLoved) {
-                    galleryImg.loved = true;
-                }
-                if(metadata.username) {
-                    galleryImg.username = metadata.username;
-                }
+                galleryImg = setMetadata(galleryImg, metadata);
             }
             galleryImgs.push(galleryImg);
             i++;
         });
+        galleryImgs.sort((a,b) => (a.lovecount < b.lovecount ? 1 : -1))
+        // galleryImgs.sort((a,b) => (a.username != state.username ? 1 : -1))
         commit('setGalleryImgs', galleryImgs);
         state.isGalleryLoading = false;
     }
@@ -103,18 +91,25 @@ function handleReceivedGalleryMetadata(content, commit, state) {
     let i = 0;
     state.galleryImgs.forEach(img => {
         let metadata = content.metadata[i];
-        if(!metadata.totalLoved) {
-            img.lovecount = 0;
-        } else {
-            img.lovecount = metadata.totalLoved;
-        }
-        if(metadata.isCurrUserLoved) {
-            img.loved = true;
-        } else {
-            img.loved = false;
-        }
+        img = setMetadata(img, metadata);
         i++;
     });
+}
+
+function setMetadata(img, metadata) {
+    img.idx = metadata.idx;
+    img.username = metadata.username;
+    if(!metadata.totalLoved) {
+        img.lovecount = 0;
+    } else {
+        img.lovecount = metadata.totalLoved;
+    }
+    if(metadata.isCurrUserLoved) {
+        img.loved = true;
+    } else {
+        img.loved = false;
+    }
+    return img
 }
 
 // actions

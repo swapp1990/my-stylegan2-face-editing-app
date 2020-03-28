@@ -15,7 +15,7 @@
                         <div></div>
                         <div>
                             <div class="love">
-                                <button @click="onLove(i)">
+                                <button @click="onLove(img.idx)">
                                     <i v-if="img.loved" class="fas fa-heart fa-fw"></i>
                                     <i v-if="!img.loved"class="far fa-heart fa-fw"></i>
                                 </button>
@@ -61,7 +61,6 @@ export default {
         isConnected: {
             handler: function(n, o) {
                 if(n) {
-                    this.isGalleryLoading = true;
                 }
             },
             deep: true,
@@ -96,6 +95,7 @@ export default {
             'sendEditAction'
         ]),
         onLove(idx) {
+            this.$ga.event('category', 'btnClick', 'onLove', 1);
             let params = {"action": "love", "idx": idx};
             this.$emit("img-clicked", params);
             this.$forceUpdate();
@@ -228,6 +228,7 @@ $color-red: #d30320;
             flex-direction: column;
             align-items: center;
             font-size: 14px;
+            font-weight: 700;
             color:black;
             font-family: 'Dancing Script'
         }

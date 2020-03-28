@@ -141,8 +141,8 @@ export default {
         //     this.connectServer();
         // }
         if(!this.isConnected) {
-            // this.$bvModal.show('login-modal')
-            this.connectServer("anon1");
+            this.$bvModal.show('login-modal');
+            // this.connectServer("anon1");
         }
     },
     methods: {
@@ -151,10 +151,12 @@ export default {
             'sendEditAction'
         ]),
         onGalleryImageClicked(params) {
-            let element = this.galleryImgs[params.idx];
-            if(params.action == "love") {
+            let elementIdx = this.galleryImgs.findIndex(img => img.idx == params.idx);
+            // console.log(elementIdx);
+            let element = this.galleryImgs[elementIdx]
+            if(element && params.action == "love") {
                 element.loved = !element.loved;
-                Vue.set(this.galleryImgs[params.idx], 'loved', element.loved);
+                Vue.set(this.galleryImgs[elementIdx], 'loved', element.loved);
                 let msg = {};
                 msg.action = "loveGalleryImage";
                 msg.params =  {"idx": params.idx, "isLoved": element.loved};
@@ -162,7 +164,7 @@ export default {
             }
         },
         hideModal() {
-            console.log(this.username);
+            // console.log(this.username);
             if(this.username !== "" && this.username.length < 10) {
                 this.$bvModal.hide('login-modal');
                 this.connectServer(this.username);

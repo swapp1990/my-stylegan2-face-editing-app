@@ -194,6 +194,7 @@ export default {
         changeSelectedAttr(attr) {
             this.currSelectedAttr = attr;
             this.currAttrVal = Number(this.currSelectedAttr.coeff);
+            this.$ga.event('category', 'btnClick', 'changeSelectedAttr', 1);
         },
         //Image overlay events
         showGallery() {
@@ -203,6 +204,7 @@ export default {
             // console.log(val);
             this.searchTxt = val;
             this.searchImg();
+            this.$ga.event('category', 'btnClick', 'onSearchEnter', 1);
         },
         //Image Edit Actions to Server
         onCoeffChange(coeff) {
@@ -216,6 +218,7 @@ export default {
             msg.params = params;
             this.sendEditAction(msg);
             this.isSaved = false;
+            this.$ga.event('category', 'btnClick', 'onCoeffChange', 1);
         },
         saveLatent() {
             let msg = {};
@@ -224,6 +227,7 @@ export default {
             this.sendEditAction(msg);
             this.isSaved = true;
             this.isImgLoading = true;
+            this.$ga.event('category', 'btnClick', 'saveLatent', 1);
         },
         randomize() {
             let msg = {};

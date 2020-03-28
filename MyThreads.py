@@ -56,6 +56,7 @@ from server.threads import Worker as workerCls
 from app.search import search
 
 executor = futures.ThreadPoolExecutor(max_workers=1)
+chats = []
 
 class StyleGanGenerator(object):
     def __init__(self):
@@ -137,6 +138,8 @@ class ClientThread():
             'saveLatent': self.saveLatent,
             'sendGallery': self.sendMainGallery,
             'sendStyleMixGallery': self.sendStyleMixGallery,
+            'sendChat': self.gotNewChat,
+            'sendChats': self.sendChats
         }
 
         #Attributes editing
@@ -161,7 +164,7 @@ class ClientThread():
             self.username = params.username
         f_results = [executor.submit(main_generator.makeModels)]
         futures.wait(f_results)
-        print("built model")
+        print("built model ", self.username)
     
     def generateRandomImg(self, params=None):
         print("Thread generateRandomSrcImg ", params)
@@ -178,7 +181,7 @@ class ClientThread():
         self.w_src_curr = self.w_src
         # print("got images ", w_srcs.shape)
         
-        mp_fig = self.processGeneratedImages(gen_images)
+        mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         self.broadcastImgToClient(mp_fig)
     
     def generateSearchedImgs(self, params=None):
@@ -199,7 +202,7 @@ class ClientThread():
         self.w_src = w_src
         self.w_src_orig = self.w_src
         self.w_src_curr = self.w_src
-        mp_fig = self.processGeneratedImages(gen_images)
+        mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         self.broadcastImgToClient(mp_fig)
 
     def changeCoeff_clipped(self, params=None):
@@ -220,7 +223,7 @@ class ClientThread():
         futures.wait(f_results)
         gen_images = f_results[0].result()
 
-        mp_fig = self.processGeneratedImages(gen_images)
+        mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         self.broadcastImgToClient(mp_fig)
     
     def mixStyleImg(self, params=None):
@@ -246,7 +249,7 @@ class ClientThread():
         futures.wait(f_results)
         gen_images = f_results[0].result()
 
-        mp_fig = self.processGeneratedImages(gen_images)
+        mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         self.broadcastImgToClient(mp_fig)
 
     def lockStyle(self, params=None):
@@ -274,6 +277,8 @@ class ClientThread():
         w_srsc = []
         for i in range(len(savedAttrs)):
             w_srsc.append(savedAttrs[i]['wlatent'])
+        if len(w_srsc) == 0:
+            print("No gallry found")
         if len(w_srsc) > 0:
             w_srsc.reverse()
             w_srsc = w_srsc[:self.GALLERY_MAX]
@@ -295,6 +300,7 @@ class ClientThread():
         attrs = attrs[:self.GALLERY_MAX]
         for i in range(len(attrs)):
             md = EasyDict({})
+            md.idx = attrs[i]["idx"]
             md.isCurrUserLoved = False
             if attrs[i].get("usersWhoLoved"):
                 users = attrs[i]["usersWhoLoved"]
@@ -317,11 +323,20 @@ class ClientThread():
         pkl_file.close()
 
         idx = params.idx
-        if savedAttrs[idx].get('usersWhoLoved'):
-            if self.username not in savedAttrs[idx]['usersWhoLoved']:
-                savedAttrs[idx]['usersWhoLoved'].append(self.username)
+        matches = [x for x in savedAttrs if x['idx']]
+        isLoved = params.isLoved
+        if isLoved:
+            if matches[0].get('usersWhoLoved'):
+                if self.username not in matches[0]['usersWhoLoved']:
+                    matches[0]['usersWhoLoved'].append(self.username)
+                    print(idx, matches[0]['usersWhoLoved'])
+            else:
+                matches[0]['usersWhoLoved'] = [self.username]
         else:
-            savedAttrs[idx]['usersWhoLoved'] = [self.username]
+            if self.username in savedAttrs[idx]['usersWhoLoved']:
+                matches[0]['usersWhoLoved'].remove(self.username)
+        
+        # print("usersWhoLoved ", matches[0]['usersWhoLoved'])
         
         output = open('results/savedAttrFromClient.pkl', 'wb')
         pickle.dump(savedAttrs, output)
@@ -336,7 +351,8 @@ class ClientThread():
         savedAttrs = pickle.load(pkl_file)
         pkl_file.close()
         
-        self.currAttrDictToSave = {'wlatent': self.w_src_curr, 'username': self.username}
+        print("Total gallery ", len(savedAttrs))
+        self.currAttrDictToSave = {'idx': len(savedAttrs), 'wlatent': self.w_src_curr, 'username': self.username}
         savedAttrs.append(self.currAttrDictToSave)
         output = open('results/savedAttrFromClient.pkl', 'wb')
         pickle.dump(savedAttrs,output)
@@ -345,6 +361,19 @@ class ClientThread():
         sleep(0.5)
         self.sendMainGallery()
 
+    #### Chats
+    def gotNewChat(self, params=None):
+        print('gotNewChat ', params)
+        global chats
+        chats.append({'user': self.username, 'chatTxt': params.chatTxt})
+        self.sendChats()
+
+    def sendChats(self, params=None):
+        global chats
+        print("chats len ", len(chats))
+        chats_to_send = chats.copy()
+        chats_to_send.reverse()
+        self.broadcastChatToClient(chats_to_send)
     ############################## Clipping W ###################################
     def moveLatent_clipped(self,latent_vector, direction,coeff, hasAttrChanged=False):
         w_curr = latent_vector.copy()
@@ -445,8 +474,8 @@ class ClientThread():
             direction = np.load('latent_directions/' + selectAttr)
             self.all_directions[a] = direction
     ########################## Image Utils ###################################
-    def processGeneratedImages(self, images):
-        if len(images) == 1:
+    def processGeneratedImages(self, images, returnAsList=True):
+        if not returnAsList:
             resImg = PIL.Image.fromarray(images[0], 'RGB')
             resImg = resImg.resize((self.IMG_SIZE,self.IMG_SIZE),PIL.Image.LANCZOS)
             mp_fig = self.getImageFig(resImg, self.IMG_SIZE)
@@ -488,6 +517,10 @@ class ClientThread():
         payload = {'action': 'sendGalleryMetadata','metadata': metadata, 'tag': tag}
         self.broadcastToClient(EasyDict(payload), broadcastToAll=False)
     
+    def broadcastChatToClient(self, chats):
+        payload = {'action': 'gotNewChat', 'chats': chats}
+        self.broadcastToClient(EasyDict(payload), broadcastToAll=True)
+
     def broadcastToClient(self, payload, broadcastToAll=False):
         payload.id = self.threadId
         payload.broadcastToAll = broadcastToAll
@@ -499,4 +532,17 @@ class ClientThread():
         self.call_func_names[payload.action](payload.params)
 
 
+###################
+def resetSaved():
+    pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+    savedAttrs = pickle.load(pkl_file)
+    pkl_file.close()
+
+    savedAttrs = []
+
+    output = open('results/savedAttrFromClient.pkl', 'wb')
+    pickle.dump(savedAttrs, output)
+    output.close()
+
+# resetSaved()
 

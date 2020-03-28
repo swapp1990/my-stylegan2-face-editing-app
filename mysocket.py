@@ -67,34 +67,22 @@ def set_session(data):
     # print(users.get("user"))
 
     # stylegan_thread = sg_encode.SGEThread(request.sid)
-    stylegan_thread = MyThreads.ClientThread(request.sid)
-    threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)
-    threadUser.start()
-    #Send first random img to each client seperately as soon as they login
-    msg = EasyDict({'id': request.sid, 'action': 'setUser', 'params': {'username': data['user']}})
-    workerCls.broadcast_event(EasyDict(msg))
-    msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
-    workerCls.broadcast_event(EasyDict(msg))
-    msg = EasyDict({'id': request.sid, 'action': 'sendStyleMixGallery', 'params': {}})
-    workerCls.broadcast_event(EasyDict(msg))
-    # if threading.active_count() < 50:
-    #     threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)
-    #     threadUser.start()
-    #     #Send first random img to each client seperately as soon as they login
-    #     msg = EasyDict({'id': request.sid, 'action': 'setUser', 'params': {'username': data['user']}})
-    #     workerCls.broadcast_event(EasyDict(msg))
-
-    #     msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
-    #     workerCls.broadcast_event(EasyDict(msg))
-    #     #Send saved gallery
-    #     # msg = EasyDict({'id': request.sid, 'action': 'sendGallery', 'params': {'init': True}})
-    #     # workerCls.broadcast_event(EasyDict(msg))
-    #     #Send chats
-    #     msg = EasyDict({'id': request.sid, 'action': 'sendChats', 'params': {}})
-    #     workerCls.broadcast_event(EasyDict(msg))
-    # else:
-    #     print("cannot start new thread")
-
+    if threading.active_count() < 50:
+        stylegan_thread = MyThreads.ClientThread(request.sid)
+        threadUser = workerCls.Worker(request.sid, stylegan_thread, socketio=socketio)
+        threadUser.start()
+        #Send first random img to each client seperately as soon as they login
+        msg = EasyDict({'id': request.sid, 'action': 'setUser', 'params': {'username': data['user']}})
+        workerCls.broadcast_event(EasyDict(msg))
+        msg = EasyDict({'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
+        workerCls.broadcast_event(EasyDict(msg))
+        msg = EasyDict({'id': request.sid, 'action': 'sendStyleMixGallery', 'params': {}})
+        workerCls.broadcast_event(EasyDict(msg))
+        #Send chats
+        msg = EasyDict({'id': request.sid, 'action': 'sendChats', 'params': {}})
+        workerCls.broadcast_event(EasyDict(msg))
+    else:
+        print("cannot start new thread")
 
 @socketio.on('editAction')
 def editActions(actionData):
