@@ -323,7 +323,7 @@ class ClientThread():
         pkl_file.close()
 
         idx = params.idx
-        matches = [x for x in savedAttrs if x['idx']]
+        matches = [x for x in savedAttrs if x['idx'] == idx]
         isLoved = params.isLoved
         if isLoved:
             if matches[0].get('usersWhoLoved'):
