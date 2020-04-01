@@ -8,6 +8,7 @@ import GalleryMobile from './views/GalleryMobile.vue';
 import Gallery from './views/Gallery.vue';
 import homenew from './views/Homenew.vue';
 import circleMenu from './views/CircularMenu.vue';
+import VideoPlayer from './components/VideoPlayer.vue';
 
 Vue.use(Router);
 

@@ -16,7 +16,10 @@
         </div>
         <div class="main-body">
             <div class="panel__box">
-                <img-container ref="imgCont"></img-container>
+                <!-- <img-container ref="imgCont"></img-container> -->
+                <div class="video-container">
+                    <video-player></video-player>
+                </div>
             </div>
         </div>
         <div class="side-menu-r">
@@ -53,6 +56,7 @@ import scrollGallery from '@/components/VerticalScrollImg.vue';
 import checkboxPicker from '@/components/CheckboxPicker.vue';
 import stylemixMenu from '@/views/StyleMixMenu.vue';
 import chatsContainer from '@/views/ChatsContainer.vue';
+import videoPlayer from '@/components/VideoPlayer.vue';
 import { mapState, mapActions, mapMutations } from 'vuex'
 
     export default {
@@ -68,7 +72,8 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             scrollGallery: scrollGallery,
             checkboxPicker: checkboxPicker,
             stylemixMenu: stylemixMenu,
-            chatsContainer: chatsContainer
+            chatsContainer: chatsContainer,
+            videoPlayer: videoPlayer
         },
         computed: mapState({
             galleryImgs_store: state => state.socketStore.galleryImgs,
@@ -124,7 +129,8 @@ import { mapState, mapActions, mapMutations } from 'vuex'
             //     this.connectServer();
             // }
             if(!this.isConnected) {
-                this.$bvModal.show('login-modal')
+                // this.$bvModal.show('login-modal');
+                this.connectServer();
             }
         },
         methods: {
@@ -317,7 +323,14 @@ $max-body-w: 600px;
         width: 100%;
         height: 100%;
         max-width: $max-body-w;
+        // text-align: center
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
+}
+.video-container {
+    display: inline-block;
 }
 .side-menu-r {
     @media only screen and (max-width: 640px) {

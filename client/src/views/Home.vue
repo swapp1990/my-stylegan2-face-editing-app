@@ -29,7 +29,10 @@
                 </nav>
             </header>
             <main>
-                <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}"></div>
+                <!-- <div class="imgParent" id="faceImg" v-bind:style="{ 'background-image': faceImageBG}"></div> -->
+                <div class="videoParent">
+                    <video-player></video-player>
+                </div>
             </main>
         </div>
         <div class="sidemenu right">
@@ -86,6 +89,7 @@ import fractalGrid from '@/components/FractalGrid.vue';
 import logoHeading from '@/components/LogoHeading.vue';
 import scrollGallery from '@/components/VerticalScrollImg.vue';
 import checkboxPicker from '@/components/CheckboxPicker.vue';
+import videoPlayer from '@/components/VideoPlayer.vue';
 
     export default {
         name: "neuMenu",
@@ -97,7 +101,8 @@ import checkboxPicker from '@/components/CheckboxPicker.vue';
             checkboxPicker: checkboxPicker,
             searchExpand: searchExpand,
             fractalGrid: fractalGrid,
-            scrollGallery: scrollGallery
+            scrollGallery: scrollGallery,
+            videoPlayer: videoPlayer
         },
         computed: {
         },
