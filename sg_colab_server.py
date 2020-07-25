@@ -3,7 +3,7 @@ import requests
 
 
 class StyleGanColab():
-    def __init__(self, local=True):
+    def __init__(self, local=False):
         if local:
             self.url = "http://localhost:5001"
         else:
