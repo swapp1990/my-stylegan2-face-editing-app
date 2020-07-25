@@ -3,6 +3,7 @@ import queue
 active_queues = []
 active_threads = []
 
+
 class Worker(threading.Thread):
     def __init__(self, id, modelCls=None, socketio=None):
         threading.Thread.__init__(self)
@@ -14,7 +15,7 @@ class Worker(threading.Thread):
         # print("thread ", self.id)
         active_queues.append(self.mailbox)
         active_threads.append(self)
-    
+
     def run(self):
         while True:
             data = self.mailbox.get()
@@ -42,20 +43,20 @@ class Worker(threading.Thread):
             self.modelCls.doWork(payload)
         else:
             self.emitGeneral(payload)
-    
+
     def emitLogs(self, msg):
         print("emit logs ", msg)
         self.socketio.emit('logs', msg)
-    
-    #Emit 'General' payload to client with the given session id. Client handles based on the content of the payload
+
+    # Emit 'General' payload to client with the given session id. Client handles based on the content of the payload
     def emitGeneral(self, payload):
         # print('emitGeneral ', payload.keys())
         if 'broadcastToAll' in payload.keys():
             if payload.broadcastToAll:
-                print("broadcastToAll")
+                # print("broadcastToAll")
                 self.socketio.emit('General', payload)
                 return
-        self.socketio.emit('General', payload, room = payload.id)
+        self.socketio.emit('General', payload, room=payload.id)
 
     def stop(self):
         print("stop ", self.id)
@@ -63,13 +64,16 @@ class Worker(threading.Thread):
         # self.join()
         active_queues.remove(self.mailbox)
         active_threads.remove(self)
-        print("active_queues ", len(active_queues), "active_threads", len(active_threads), "active_count ", threading.active_count())
-        
+        print("active_queues ", len(active_queues), "active_threads", len(
+            active_threads), "active_count ", threading.active_count())
+
+
 def clear():
     active_queues = []
     for t in active_threads:
         t.stop()
     print("cleared all threads", active_threads)
+
 
 def broadcast_event(data):
     # print(data)

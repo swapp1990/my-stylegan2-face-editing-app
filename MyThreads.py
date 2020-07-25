@@ -52,105 +52,16 @@ import pickle
 import PIL.Image
 import mpld3
 from matplotlib import pyplot as plt
-import dynamo
-import requests
+from sg_colab_server import StyleGanColab
+from sg_local_gpu import StyleGanGenerator
 
 SG2_PKL_PATH = 'cache/generator_model-stylegan2-config-f.pkl'
-
 
 executor = futures.ThreadPoolExecutor(max_workers=1)
 chats = []
 
-############################################### Original Run on GPU #####################################
-
-
-class StyleGanGenerator(object):
-    def __init__(self):
-        self.Gs_kwargs = dnnlib.EasyDict()
-        self.Gs_kwargs.output_transform = dict(
-            func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-        self.Gs_kwargs.randomize_noise = False
-        self.Gs_kwargs.minibatch_size = 1
-        self.truncation_psi = 0.5
-        self.modelsBuilt = False
-        self.cachedGallery = None
-
-    def makeModels(self, params=None):
-        if self.modelsBuilt:
-            print("models already built")
-            return
-        _G, _D, self.Gs = pretrained_networks.load_networks(SG2_PKL_PATH)
-        self.w_avg = self.Gs.get_var('dlatent_avg')
-        print("made models ", self.w_avg.shape)
-        self.modelsBuilt = True
-
-    def generateRandomImages(self, batch_size=1):
-        z = np.random.randn(batch_size, *self.Gs.input_shape[1:])
-        w_src = self.Gs.components.mapping.run(z, None)
-        w_src = self.w_avg + (w_src - self.w_avg) * self.truncation_psi
-        G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-        # print(G_imgs.shape)
-        return G_imgs, w_src
-
-    def generateImageFromWsrc(self, w_src):
-        G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-        # print(G_imgs.shape)
-        return G_imgs
-
-    def getRandomWSrc(self, batch_size=1):
-        z = np.random.randn(1, *self.Gs.input_shape[1:])
-        w_src = self.Gs.components.mapping.run(z, None)
-        w_src = self.w_avg + (w_src - self.w_avg) * (self.truncation_psi+0.1)
-        return w_src
-
-    def getCachedGallery(self, w_src):
-        if self.cachedGallery is not None:
-            return self.self.cachedGallery
-        G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
-        return G_imgs
-
-
-def testGenerator():
-    gen = StyleGanGenerator()
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        f_results = [executor.submit(gen.makeModels)]
-        concurrent.futures.wait(f_results)
-        # print(f_results.)
-        f_results = [executor.submit(gen.getRandomImage)]
-        concurrent.futures.wait(f_results)
-        gen_image = f_results[0].result()
-        print("got image ", gen_image.shape)
-
-
 # main_generator = StyleGanGenerator()
-############################################### Original Run on GPU #####################################
-############################################### Run on Google Colab #####################################
-
-
-class StyleGanColab():
-    def __init__(self, local=True):
-        if local:
-            self.url = "http://localhost:5001"
-        else:
-            self.url = dynamo.get_bff_url()
-        print("dynamo ", self.url)
-
-    def generateRandomImages(self, threadId, batch_size=1):
-        url = self.url + "/generateRandomImages"
-        res = requests.post(url, json={"threadId": threadId})
-        res = res.json()
-
-    def generateImageFromWsrc(self, threadId, w_src):
-        url = self.url + "/generateImageFromWsrc"
-        res = requests.post(
-            url, json={"threadId": threadId, "w_src": w_src.tolist()})
-        res = res.json()
-
-
 main_generator = StyleGanColab()
-############################################### Run on Google Colab #####################################
-
-############################################### Client Threads #####################################
 
 
 class ClientThread():
@@ -167,6 +78,9 @@ class ClientThread():
             'randomize': self.generateRandomImg,
             'changeCoeff': self.changeCoeff_clipped,
             'gotWsrcImage': self.gotWsrcImage,
+            'gotStyleMixImages': self.gotStyleMixImages,
+            'gotGalleryImages': self.gotGalleryImages,
+            'gotSearchedImage': self.gotSearchedImage,
             'mixStyleImg': self.mixStyleImg,
             'sendSearchedImages': self.generateSearchedImgs,
             'lockStyle': self.lockStyle,
@@ -194,8 +108,47 @@ class ClientThread():
 
         self.stylemix_latents = []
         self.loadAllDirections()
+    ############################## Colab Inference ###################
 
+    def gotRandomImages(self, params=None):
+        print("gotRandomImages ", params.keys())
+        self.w_src = params.w_srcs
+        self.w_src_orig = self.w_src
+        self.w_src_curr = self.w_src
+        # print("got images ", w_srcs.shape)
+
+        mp_fig = self.processGeneratedImages(params.images, returnAsList=False)
+        self.broadcastImgToClient(mp_fig)
+
+    def gotWsrcImage(self, params=None):
+        print("gotWsrcImage ", params.keys())
+        mp_fig = self.processGeneratedImages(params.images, returnAsList=False)
+        self.broadcastImgToClient(mp_fig)
+
+    def gotStyleMixImages(self, params=None):
+        print("gotStyleMixImages ", params.keys())
+        self.stylemix_latents = params.w_srcs
+        gen_images = self.processGeneratedImages(params.images)
+        self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
+
+    def gotGalleryImages(self, params=None):
+        print("gotGalleryImages ", params.keys())
+        gen_images = self.processGeneratedImages(params.images)
+
+        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
+        savedAttrs = pickle.load(pkl_file)
+        pkl_file.close()
+
+        metadata = self.getMetadataFromSaved(savedAttrs)
+        self.broadcastGalleryToClient(
+            gen_images, metadata=metadata, tag='gallery')
+
+    def gotSearchedImage(self, params=None):
+        print("gotSearchedImage ", params.keys())
+        mp_fig = self.processGeneratedImages(params.images, returnAsList=False)
+        self.broadcastImgToClient(mp_fig)
     ############################## Client Actions ###################
+
     def setUser(self, params=None):
         print("Thread setUser ", params)
         if params.username:
@@ -216,44 +169,34 @@ class ClientThread():
         #     main_generator.generateRandomImages, batch_size=1)]
         # futures.wait(f_results)
         # (gen_images, w_srcs) = f_results[0].result()
-        executor.submit(main_generator.generateRandomImages(self.threadId))
-
-    def gotRandomImages(self, params=None):
-        print("gotRandomImages ", params.keys())
-        self.w_src = params.w_srcs
-        self.w_src_orig = self.w_src
-        self.w_src_curr = self.w_src
-        # print("got images ", w_srcs.shape)
-
-        mp_fig = self.processGeneratedImages(params.images, returnAsList=False)
-        self.broadcastImgToClient(mp_fig)
-
-    def gotWsrcImage(self, params=None):
-        print("gotWsrcImage ", params.keys())
-        mp_fig = self.processGeneratedImages(params.images, returnAsList=False)
-        self.broadcastImgToClient(mp_fig)
+        executor.submit(main_generator.generateRandomImages(
+            self.threadId, batch_size=1))
 
     def generateSearchedImgs(self, params=None):
         searchTxt = params.text
         # Get ordered direction list
         dir_list_ordered = search.getDirListfromSearchTxt(searchTxt)
-        f_results = [executor.submit(main_generator.getRandomWSrc)]
-        futures.wait(f_results)
-        w_src = f_results[0].result()
+        # f_results = [executor.submit(main_generator.getRandomWSrc)]
+        # futures.wait(f_results)
+        # w_src = f_results[0].result()
+        w_src = self.w_src
         for j, attr in enumerate(dir_list_ordered):
             direction = self.all_directions[attr['name']]
             coeff = attr['coeff']
             w_src = self.moveLatent_clipped(w_src, direction, coeff)
 
-        f_results = [executor.submit(
-            main_generator.generateImageFromWsrc, self.threadId, w_src)]
-        futures.wait(f_results)
-        gen_images = f_results[0].result()
+        # f_results = [executor.submit(
+        #     main_generator.generateImageFromWsrc, self.threadId, w_src)]
+        # futures.wait(f_results)
+        # gen_images = f_results[0].result()
         self.w_src = w_src
         self.w_src_orig = self.w_src
         self.w_src_curr = self.w_src
-        mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
-        self.broadcastImgToClient(mp_fig)
+        # mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
+        # self.broadcastImgToClient(mp_fig)
+
+        executor.submit(main_generator.generateImageFromWsrc,
+                        self.threadId, w_src=w_src, tag="forSearch")
 
     def changeCoeff_clipped(self, params=None):
         print("changeCoeff_clipped ", params)
@@ -304,13 +247,15 @@ class ClientThread():
                 w_src_curr[0][l][idx] = selectedStyle[l][idx]
 
         self.w_src_mix = w_src_curr
-        f_results = [executor.submit(
-            main_generator.generateImageFromWsrc, w_src=w_src_curr)]
-        futures.wait(f_results)
-        gen_images = f_results[0].result()
+        # f_results = [executor.submit(
+        #     main_generator.generateImageFromWsrc, w_src=w_src_curr)]
+        # futures.wait(f_results)
+        # gen_images = f_results[0].result()
 
-        mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
-        self.broadcastImgToClient(mp_fig)
+        # mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
+        # self.broadcastImgToClient(mp_fig)
+        executor.submit(main_generator.generateImageFromWsrc, self.threadId,
+                        w_src=w_src_curr)
 
     def lockStyle(self, params=None):
         print("lockStyle")
@@ -320,14 +265,19 @@ class ClientThread():
     # Gallery
     def sendStyleMixGallery(self, params=None):
         print("Thread sendStyleMixGallery ", params)
-        f_results = [executor.submit(
-            main_generator.generateRandomImages, batch_size=self.STYLEMIX_N)]
-        futures.wait(f_results)
-        (gen_images, w_srcs) = f_results[0].result()
-        print("got images ", gen_images.shape)
-        self.stylemix_latents = w_srcs
-        gen_images = self.processGeneratedImages(gen_images)
-        self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
+        # Old code for local
+        # f_results = [executor.submit(
+        #     main_generator.generateRandomImages, batch_size=self.STYLEMIX_N)]
+        # futures.wait(f_results)
+        # (gen_images, w_srcs) = f_results[0].result()
+        # print("got images ", gen_images.shape)
+        # self.stylemix_latents = w_srcs
+        # gen_images = self.processGeneratedImages(gen_images)
+        # self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
+
+        # colab call
+        executor.submit(main_generator.generateRandomImages,
+                        self.threadId, batch_size=self.STYLEMIX_N, tag="forStyleMix")
 
     def sendMainGallery(self, params=None):
         print("Thread sendMainGallery ", params)
@@ -345,16 +295,19 @@ class ClientThread():
             w_srsc = w_srsc[:self.GALLERY_MAX]
             w_srsc = np.asarray(w_srsc)
             w_srsc = np.squeeze(w_srsc, axis=1)
-            f_results = [executor.submit(
-                main_generator.getCachedGallery, w_src=w_srsc)]
-            futures.wait(f_results)
-            gen_images = f_results[0].result()
-            print("Gallery ", gen_images.shape)
 
-            gen_images = self.processGeneratedImages(gen_images)
-            metadata = self.getMetadataFromSaved(savedAttrs)
-            self.broadcastGalleryToClient(
-                gen_images, metadata=metadata, tag='gallery')
+            # f_results = [executor.submit(
+            #     main_generator.getCachedGallery, w_src=w_srsc)]
+            # futures.wait(f_results)
+            # gen_images = f_results[0].result()
+            # print("Gallery ", gen_images.shape)
+
+            # gen_images = self.processGeneratedImages(gen_images)
+            # metadata = self.getMetadataFromSaved(savedAttrs)
+            # self.broadcastGalleryToClient(
+            #     gen_images, metadata=metadata, tag='gallery')
+            executor.submit(main_generator.generateImageFromWsrc, self.threadId,
+                            w_src=w_srsc, tag="forGallery")
 
     def getMetadataFromSaved(self, savedAttrs):
         metadata = []

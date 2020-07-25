@@ -1,12 +1,13 @@
 from pynamodb.models import Model
 from pynamodb.attributes import UnicodeAttribute
+import os
 
 
 class Ngrok(Model):
     class Meta:
         region = 'us-west-2'
-        aws_access_key_id = 'AKIAV75AMAC5Q73LDO76'
-        aws_secret_access_key = '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'
+        aws_access_key_id = os.getenv('aws_access_key_id')
+        aws_secret_access_key = os.getenv('aws_secret_access_key')
         table_name = 'Ngrok'
     url = UnicodeAttribute(hash_key=True)
     url_val = UnicodeAttribute(null=True, attr_name='url_val')

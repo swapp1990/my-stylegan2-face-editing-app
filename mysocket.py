@@ -73,9 +73,9 @@ def set_session(data):
         msg = EasyDict(
             {'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
         workerCls.broadcast_event(EasyDict(msg))
-        # msg = EasyDict(
-        #     {'id': request.sid, 'action': 'sendStyleMixGallery', 'params': {}})
-        # workerCls.broadcast_event(EasyDict(msg))
+        msg = EasyDict(
+            {'id': request.sid, 'action': 'sendStyleMixGallery', 'params': {}})
+        workerCls.broadcast_event(EasyDict(msg))
         # #Send chats
         # msg = EasyDict({'id': request.sid, 'action': 'sendChats', 'params': {}})
         # workerCls.broadcast_event(EasyDict(msg))
