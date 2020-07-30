@@ -15,13 +15,15 @@ class StyleGanColab():
         try:
             res = requests.post(url, json=payload)
             res = res.json()
+            return 1
         except:
             print("rest error")
+            return 0
 
     def generateRandomImages(self, threadId, batch_size=1, tag=""):
-        self.sendMsgToColab(
+        return self.sendMsgToColab(
             {"action": "generateRandomImages", "client_id": threadId, "batch_size": batch_size, "tag": tag})
 
     def generateImageFromWsrc(self, threadId, w_src, tag=""):
-        self.sendMsgToColab({"action": "generateImgFromWSrc",
-                             "client_id": threadId, "w_src": w_src.tolist(), "tag": tag})
+        return self.sendMsgToColab({"action": "generateImgFromWSrc",
+                                    "client_id": threadId, "w_src": w_src.tolist(), "tag": tag})

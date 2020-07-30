@@ -1,42 +1,4 @@
-# import queue
-# import threading
-
-# class SomeClass(threading.Thread):
-#     def __init__(self, loop_time = 1.0/60):
-#         self.mailbox = queue.Queue()
-#         self.timeout = loop_time
-#         super(SomeClass, self).__init__()
-
-#     def onThread(self, function, *args, **kwargs):
-#         self.mailbox.put((function, args, kwargs))
-
-#     def run(self):
-#         while True:
-#             try:
-#                 function, args, kwargs = self.mailbox.get(timeout=self.timeout)
-#                 function(*args, **kwargs)
-#             except queue.Empty:
-#                 return
-
-#     def idle(self):
-#         # put the code you would have put in the `run` loop here
-#         print("idle")
-
-#     def doSomething(self):
-#         print("do something")
-
-#         pass
-
-#     def doSomethingElse(self):
-#         print("do something else")
-#         pass
-
-# someClass = SomeClass()
-# someClass.start()
-# someClass.onThread(someClass.doSomething)
-# someClass.onThread(someClass.doSomethingElse)
-# someClass.onThread(someClass.doSomething)
-
+import uuid
 from app.search import search
 from server.threads import Worker as workerCls
 from easydict import EasyDict
@@ -54,14 +16,28 @@ import mpld3
 from matplotlib import pyplot as plt
 from sg_colab_server import StyleGanColab
 from sg_local_gpu import StyleGanGenerator
-
+import gallery
 SG2_PKL_PATH = 'cache/generator_model-stylegan2-config-f.pkl'
 
 executor = futures.ThreadPoolExecutor(max_workers=1)
-chats = []
 
+
+def submitExecutor(func, *args, **kwargs):
+    f = executor.submit(func, *args, **kwargs)
+    error = f.exception()
+    if error is not None:
+        return
+    # if f.result() == 1:
+    #     print("success")
+    # else:
+    #     print("error")
+    return f.result()
+
+
+chats = []
+cachedGallery = None
 # main_generator = StyleGanGenerator()
-main_generator = StyleGanColab()
+main_generator = StyleGanColab(local=True)
 
 
 class ClientThread():
@@ -134,12 +110,8 @@ class ClientThread():
     def gotGalleryImages(self, params=None):
         print("gotGalleryImages ", params.keys())
         gen_images = self.processGeneratedImages(params.images)
-
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-
-        metadata = self.getMetadataFromSaved(savedAttrs)
+        metadata = gallery.getMetadataFromSaved(
+            self.GALLERY_MAX, self.username)
         self.broadcastGalleryToClient(
             gen_images, metadata=metadata, tag='gallery')
 
@@ -169,8 +141,13 @@ class ClientThread():
         #     main_generator.generateRandomImages, batch_size=1)]
         # futures.wait(f_results)
         # (gen_images, w_srcs) = f_results[0].result()
-        executor.submit(main_generator.generateRandomImages(
-            self.threadId, batch_size=1))
+        # executor.submit(main_generator.generateRandomImages(
+        #     self.threadId, batch_size=1))
+        res = submitExecutor(main_generator.generateRandomImages,
+                             self.threadId, 1)
+        if res != 1:
+            print("send error to client")
+            self.broadcastRestErrorToClient()
 
     def generateSearchedImgs(self, params=None):
         searchTxt = params.text
@@ -224,8 +201,11 @@ class ClientThread():
         # self.broadcastImgToClient(mp_fig)
 
         # new code sents request to colab, and colab sends image back as a post request
-        executor.submit(main_generator.generateImageFromWsrc, self.threadId,
-                        w_src=self.w_src_curr)
+        res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+                             w_src=self.w_src_curr)
+        if res != 1:
+            # Rest error
+            self.broadcastRestErrorToClient()
 
     def mixStyleImg(self, params=None):
         selectedStyle = np.array(
@@ -254,8 +234,10 @@ class ClientThread():
 
         # mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         # self.broadcastImgToClient(mp_fig)
-        executor.submit(main_generator.generateImageFromWsrc, self.threadId,
-                        w_src=w_src_curr)
+        res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+                             w_src=w_src_curr)
+        if res != 1:
+            print("send error to client")
 
     def lockStyle(self, params=None):
         print("lockStyle")
@@ -276,106 +258,32 @@ class ClientThread():
         # self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
 
         # colab call
-        executor.submit(main_generator.generateRandomImages,
-                        self.threadId, batch_size=self.STYLEMIX_N, tag="forStyleMix")
+        res = submitExecutor(main_generator.generateRandomImages,
+                             self.threadId, batch_size=self.STYLEMIX_N, tag="forStyleMix")
+        if res != 1:
+            print("send error to client")
 
     def sendMainGallery(self, params=None):
         print("Thread sendMainGallery ", params)
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-
-        w_srsc = []
-        for i in range(len(savedAttrs)):
-            w_srsc.append(savedAttrs[i]['wlatent'])
-        if len(w_srsc) == 0:
-            print("No gallry found")
+        w_srsc = gallery.loadGallery(self.GALLERY_MAX)
+        # print(len(w_srsc))
         if len(w_srsc) > 0:
-            w_srsc.reverse()
-            w_srsc = w_srsc[:self.GALLERY_MAX]
-            w_srsc = np.asarray(w_srsc)
-            w_srsc = np.squeeze(w_srsc, axis=1)
-
-            # f_results = [executor.submit(
-            #     main_generator.getCachedGallery, w_src=w_srsc)]
-            # futures.wait(f_results)
-            # gen_images = f_results[0].result()
-            # print("Gallery ", gen_images.shape)
-
-            # gen_images = self.processGeneratedImages(gen_images)
-            # metadata = self.getMetadataFromSaved(savedAttrs)
-            # self.broadcastGalleryToClient(
-            #     gen_images, metadata=metadata, tag='gallery')
-            executor.submit(main_generator.generateImageFromWsrc, self.threadId,
-                            w_src=w_srsc, tag="forGallery")
-
-    def getMetadataFromSaved(self, savedAttrs):
-        metadata = []
-        attrs = savedAttrs.copy()
-        attrs.reverse()
-        attrs = attrs[:self.GALLERY_MAX]
-        for i in range(len(attrs)):
-            md = EasyDict({})
-            md.idx = attrs[i]["idx"]
-            md.isCurrUserLoved = False
-            if attrs[i].get("usersWhoLoved"):
-                users = attrs[i]["usersWhoLoved"]
-                md.totalLoved = len(users)
-                if self.username in users:
-                    md.isCurrUserLoved = True
-            else:
-                md.totalLoved = 0
-            if attrs[i].get("username"):
-                md.username = attrs[i]["username"]
-            else:
-                md.username = "unknown"
-            metadata.append(md)
-        return metadata
+            res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+                                 w_src=w_srsc, tag="forGallery")
+            if res != 1:
+                print("send error to client")
 
     def loveGalleryImage(self, params=None):
         print("Thread loveGalleryImage ", params)
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-
-        idx = params.idx
-        matches = [x for x in savedAttrs if x['idx'] == idx]
-        isLoved = params.isLoved
-        if isLoved:
-            if matches[0].get('usersWhoLoved'):
-                if self.username not in matches[0]['usersWhoLoved']:
-                    matches[0]['usersWhoLoved'].append(self.username)
-                    print(idx, matches[0]['usersWhoLoved'])
-            else:
-                matches[0]['usersWhoLoved'] = [self.username]
-        else:
-            if self.username in savedAttrs[idx]['usersWhoLoved']:
-                matches[0]['usersWhoLoved'].remove(self.username)
-
-        # print("usersWhoLoved ", matches[0]['usersWhoLoved'])
-
-        output = open('results/savedAttrFromClient.pkl', 'wb')
-        pickle.dump(savedAttrs, output)
-        output.close()
-
-        metadata = self.getMetadataFromSaved(savedAttrs)
+        gallery.love(params, self.username)
+        metadata = gallery.getMetadataFromSaved(
+            self.GALLERY_MAX, self.username)
         self.broadcastGalleryMetadataToClient(metadata=metadata, tag='gallery')
 
     def saveLatent(self, params=None):
-        print('saveLatent')
-        pkl_file = open('results/savedAttrFromClient.pkl', 'rb')
-        savedAttrs = pickle.load(pkl_file)
-        pkl_file.close()
-
-        print("Total gallery ", len(savedAttrs))
-        self.currAttrDictToSave = {'idx': len(
-            savedAttrs), 'wlatent': self.w_src_curr, 'username': self.username}
-        savedAttrs.append(self.currAttrDictToSave)
-        output = open('results/savedAttrFromClient.pkl', 'wb')
-        pickle.dump(savedAttrs, output)
-        output.close()
-
-        sleep(0.5)
+        currAttrDictToSave = {
+            'idx': uuid.uuid4().hex, 'wlatent': self.w_src_curr, 'username': self.username, 'usersWhoLoved': [self.username]}
+        gallery.saveLatent(currAttrDictToSave)
         self.sendMainGallery()
 
     # Chats
@@ -394,6 +302,8 @@ class ClientThread():
     ############################## Clipping W ###################################
 
     def moveLatent_clipped(self, latent_vector, direction, coeff, hasAttrChanged=False):
+        if latent_vector is None:
+            return None
         w_curr = latent_vector.copy()
         w_orig = latent_vector.copy()
 
@@ -534,7 +444,7 @@ class ClientThread():
         broadcastToAll = True
         if tag == 'styleMixGallery':
             broadcastToAll = False
-        print("broadcastToClient ", broadcastToAll, tag)
+        # print("broadcastToClient ", broadcastToAll, tag)
         self.broadcastToClient(
             EasyDict(payload), broadcastToAll=broadcastToAll)
 
@@ -547,6 +457,10 @@ class ClientThread():
         payload = {'action': 'gotNewChat', 'chats': chats}
         self.broadcastToClient(EasyDict(payload), broadcastToAll=True)
 
+    def broadcastRestErrorToClient(self):
+        payload = {'action': 'gotRestError'}
+        self.broadcastToClient(EasyDict(payload), broadcastToAll=False)
+
     def broadcastToClient(self, payload, broadcastToAll=False):
         payload.id = self.threadId
         payload.broadcastToAll = broadcastToAll
@@ -557,15 +471,3 @@ class ClientThread():
     def doWork(self, payload):
         assert(isinstance(payload, EasyDict))
         self.call_func_names[payload.action](payload.params)
-
-
-###################
-def resetSaved():
-    savedAttrs = []
-    with open('results/savedAttrFromClient.pkl', 'wb') as handle:
-        # output = open('results/savedAttrFromClient.pkl', 'wb')
-        pickle.dump(savedAttrs, handle)
-    # output.close()
-
-
-# resetSaved()

@@ -2,6 +2,8 @@
 const state = {
   username: "anon",
   isConnected: false,
+  isMainImgLoading: 1, //0: loaded, 1: loading, 2: error
+  isStyleMixLoading: 1, //0: loaded, 1: loading, 2: error
   socket: null,
   mainFaceImg: null,
   count: 1,
@@ -30,6 +32,9 @@ function handleGeneralMsg(content, commit, state) {
       handleReceivedGalleryMetadata(content, commit, state);
     } else if (content.action == "gotNewChat") {
       handleChats(content, commit, state);
+    } else if (content.action == "gotRestError") {
+      console.log("gotRestError");
+      handleRestError(content, commit, state);
     }
   }
 }
@@ -87,13 +92,20 @@ function handleReceivedGallery(content, commit, state) {
 }
 
 function handleReceivedGalleryMetadata(content, commit, state) {
-  // console.log(content.metadata);
   let i = 0;
   state.galleryImgs.forEach((img) => {
-    let metadata = content.metadata[i];
+    let metadata = content.metadata.find((e) => e.idx == img.idx);
     img = setMetadata(img, metadata);
     i++;
   });
+}
+
+function handleRestError(content, commit, state) {
+  if ((content.tag = "main")) {
+    commit("setIsMainImgLoading", 2);
+  } else if ((content.tag = "styleMix")) {
+    commit("setIsStyleMixLoading", 2);
+  }
 }
 
 function setMetadata(img, metadata) {
@@ -175,6 +187,12 @@ const mutations = {
   },
   setChats(state, chatsArr) {
     state.chatsArr = chatsArr;
+  },
+  setIsMainImgLoading(state, loadingFlag) {
+    state.isMainImgLoading = loadingFlag;
+  },
+  setIsStyleMixLoading(state, loadingFlag) {
+    state.isStyleMixLoading = loadingFlag;
   },
 };
 

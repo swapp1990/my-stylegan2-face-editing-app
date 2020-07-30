@@ -68,8 +68,9 @@ def set_session(data):
             request.sid, stylegan_thread, socketio=socketio)
         threadUser.start()
         # Send first random img to each client seperately as soon as they login
-        # msg = EasyDict({'id': request.sid, 'action': 'setUser', 'params': {'username': data['user']}})
-        # workerCls.broadcast_event(EasyDict(msg))
+        msg = EasyDict({'id': request.sid, 'action': 'setUser',
+                        'params': {'username': data['user']}})
+        workerCls.broadcast_event(EasyDict(msg))
         msg = EasyDict(
             {'id': request.sid, 'action': 'generateRandomImg', 'params': {}})
         workerCls.broadcast_event(EasyDict(msg))

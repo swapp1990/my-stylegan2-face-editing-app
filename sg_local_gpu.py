@@ -49,7 +49,7 @@ class StyleGanGenerator(object):
 
     def getCachedGallery(self, w_src):
         if self.cachedGallery is not None:
-            return self.self.cachedGallery
+            return self.cachedGallery
         G_imgs = self.Gs.components.synthesis.run(w_src, **self.Gs_kwargs)
         return G_imgs
 
