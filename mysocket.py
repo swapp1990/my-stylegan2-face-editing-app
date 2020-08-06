@@ -1,3 +1,4 @@
+from ses_mailer import Mail
 import numpy as np
 from flask import Flask, jsonify, request, session
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
@@ -14,7 +15,7 @@ import sg_encode
 import MyThreads
 from easydict import EasyDict
 import threading
-
+from my_globals import AWS_access_key_id, AWS_secret_access_key
 # instantiate the app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -27,13 +28,25 @@ log.setLevel(logging.ERROR)
 CORS(app, resources={r'/*': {'origins': '*'}})
 connectedToClient = False
 stylegan_encode = None
+# initiate mailer
+
+mail = Mail(region='us-west-2',
+            aws_access_key_id=AWS_access_key_id,
+            aws_secret_access_key=AWS_secret_access_key,
+            sender="swapp19902@gmail.com",
+            reply_to="swapp19902@gmail.com",
+            template="emailTemplates/reset_password")
 
 users = []
+
+main = MyThreads.MainThread()
 
 
 def runServer():
     users = []
+    main.initServer()
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    # Only reaches here on socket exit
     workerCls.clear()
 
 

@@ -1,5 +1,6 @@
 import dynamo
 import requests
+import mysocket
 
 
 class StyleGanColab():
@@ -9,6 +10,18 @@ class StyleGanColab():
         else:
             self.url = dynamo.get_bff_url()
         print("dynamo ", self.url)
+        # self.pingColab()
+
+    def pingColab(self):
+        url = self.url + "/ping"
+        try:
+            res = requests.get(url, json={})
+            res = res.json()
+        except requests.ConnectionError as e:
+            print("connection error ", e)
+            mysocket.main.emailError(e)
+            return 0
+        return 1
 
     def sendMsgToColab(self, payload):
         url = self.url + "/msgFromMain"

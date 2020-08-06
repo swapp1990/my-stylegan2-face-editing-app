@@ -17,6 +17,9 @@ from matplotlib import pyplot as plt
 from sg_colab_server import StyleGanColab
 from sg_local_gpu import StyleGanGenerator
 import gallery
+import scheduleEvents as sc
+import mysocket
+
 SG2_PKL_PATH = 'cache/generator_model-stylegan2-config-f.pkl'
 
 executor = futures.ThreadPoolExecutor(max_workers=1)
@@ -37,7 +40,31 @@ def submitExecutor(func, *args, **kwargs):
 chats = []
 cachedGallery = None
 # main_generator = StyleGanGenerator()
-main_generator = StyleGanColab(local=True)
+main_generator = StyleGanColab(local=False)
+
+
+class MainThread():
+    def __init__(self):
+        print("MainThread")
+
+    def initServer(self):
+        res = main_generator.pingColab()
+        if res == 1:
+            print("Colab is UP!")
+
+        sc.tl.start(block=False)
+
+    def pingColabServer(self):
+        res = main_generator.pingColab()
+        if res == 1:
+            print("Colab is UP!")
+        else:
+            print("Colab error ", res)
+
+    def emailError(self, errorMsg):
+        mysocket.mail.send(to="swapp19902@gmail.com",
+                           subject="BFF Colab Error",
+                           body=errorMsg)
 
 
 class ClientThread():
