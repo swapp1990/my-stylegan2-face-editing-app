@@ -15,7 +15,7 @@ import sg_encode
 import MyThreads
 from easydict import EasyDict
 import threading
-from my_globals import AWS_access_key_id, AWS_secret_access_key
+import os
 # instantiate the app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -28,11 +28,13 @@ log.setLevel(logging.ERROR)
 CORS(app, resources={r'/*': {'origins': '*'}})
 connectedToClient = False
 stylegan_encode = None
-# initiate mailer
 
+# initiate mailer
+aws_access_key_id = os.getenv('aws_access_key_id')
+aws_secret_access_key = os.getenv('aws_secret_access_key')
 mail = Mail(region='us-west-2',
-            aws_access_key_id=AWS_access_key_id,
-            aws_secret_access_key=AWS_secret_access_key,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
             sender="swapp19902@gmail.com",
             reply_to="swapp19902@gmail.com",
             template="emailTemplates/reset_password")
