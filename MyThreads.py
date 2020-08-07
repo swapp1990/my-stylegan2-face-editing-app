@@ -46,6 +46,20 @@ main_generator = StyleGanColab(local=False)
 class MainThread():
     def __init__(self):
         print("MainThread")
+        self.styleMixImages = None
+        self.galleryImages = None
+
+    def getCachedStyleMix(self):
+        return self.styleMixImages
+
+    def setCachedStyleMix(self, styleMixImages):
+        self.styleMixImages = styleMixImages
+
+    def getCachedGallery(self):
+        return self.galleryImages
+
+    def setCachedGallery(self, galleryImages):
+        self.galleryImages = galleryImages
 
     def initServer(self):
         res = main_generator.pingColab()
@@ -130,12 +144,17 @@ class ClientThread():
 
     def gotStyleMixImages(self, params=None):
         print("gotStyleMixImages ", params.keys())
+        # Set cache
+        cachedStyleMix = params
+        mysocket.main.setCachedStyleMix(cachedStyleMix)
         self.stylemix_latents = params.w_srcs
         gen_images = self.processGeneratedImages(params.images)
         self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
 
     def gotGalleryImages(self, params=None):
         print("gotGalleryImages ", params.keys())
+        cachedGallery = params
+        mysocket.main.setCachedGallery(cachedGallery)
         gen_images = self.processGeneratedImages(params.images)
         metadata = gallery.getMetadataFromSaved(
             self.GALLERY_MAX, self.username)
@@ -284,21 +303,38 @@ class ClientThread():
         # gen_images = self.processGeneratedImages(gen_images)
         # self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
 
-        # colab call
-        res = submitExecutor(main_generator.generateRandomImages,
-                             self.threadId, batch_size=self.STYLEMIX_N, tag="forStyleMix")
-        if res != 1:
-            print("send error to client")
+        if mysocket.main.getCachedStyleMix() is None:
+            # colab call
+            res = submitExecutor(main_generator.generateRandomImages,
+                                 self.threadId, batch_size=self.STYLEMIX_N, tag="forStyleMix")
+            if res != 1:
+                print("send error to client")
+        else:
+            styleMixCache = mysocket.main.getCachedStyleMix()
+            self.stylemix_latents = styleMixCache.w_srcs
+            gen_images = self.processGeneratedImages(styleMixCache.images)
+            self.broadcastGalleryToClient(gen_images, tag='styleMixGallery')
 
     def sendMainGallery(self, params=None):
         print("Thread sendMainGallery ", params)
         w_srsc = gallery.loadGallery(self.GALLERY_MAX)
+        updateCache = False
+        if 'updateCache' in params.keys():
+            updateCache = params['updateCache']
         # print(len(w_srsc))
         if len(w_srsc) > 0:
-            res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
-                                 w_src=w_srsc, tag="forGallery")
-            if res != 1:
-                print("send error to client")
+            if mysocket.main.getCachedGallery() is None or updateCache:
+                res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+                                     w_src=w_srsc, tag="forGallery")
+                if res != 1:
+                    print("send error to client")
+            else:
+                cachedGallery = mysocket.main.getCachedGallery()
+                gen_images = self.processGeneratedImages(cachedGallery.images)
+                metadata = gallery.getMetadataFromSaved(
+                    self.GALLERY_MAX, self.username)
+                self.broadcastGalleryToClient(
+                    gen_images, metadata=metadata, tag='gallery')
 
     def loveGalleryImage(self, params=None):
         print("Thread loveGalleryImage ", params)
@@ -311,7 +347,7 @@ class ClientThread():
         currAttrDictToSave = {
             'idx': uuid.uuid4().hex, 'wlatent': self.w_src_curr, 'username': self.username, 'usersWhoLoved': [self.username]}
         gallery.saveLatent(currAttrDictToSave)
-        self.sendMainGallery()
+        self.sendMainGallery({'updateCache': True})
 
     # Chats
     def gotNewChat(self, params=None):
