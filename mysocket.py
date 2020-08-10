@@ -11,6 +11,7 @@ import logging
 from operator import itemgetter
 # my classes
 from server.threads import Worker as workerCls
+from sg_colab_server import StyleGanColab
 import sg_encode
 import MyThreads
 from easydict import EasyDict
@@ -41,6 +42,7 @@ mail = Mail(region='us-west-2',
 
 users = []
 
+main_generator = StyleGanColab(local=False)
 main = MyThreads.MainThread()
 
 
@@ -70,7 +72,7 @@ def disconnect():
 @socketio.on('set-session')
 def set_session(data):
     print(data, request.sid)
-    if data['user'] != 'anon':
+    if 'user' in data.keys() and data['user'] != 'anon':
         users.append({"user": data['user'], "sid": request.sid})
     else:
         print('anon')
@@ -118,6 +120,14 @@ def editActions(actionData):
 @app.route("/")
 def hello_world():
     return "Test 123 "
+
+
+@app.route("/updateColabUrl", methods=["GET"])
+def updateColabUrl():
+    print("updateColabUrl")
+    main_generator.update_url()
+    msg = {"response": "url updated!"}
+    return msg
 
 
 def transform_from_list(post_json):

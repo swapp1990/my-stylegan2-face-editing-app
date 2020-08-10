@@ -13,6 +13,12 @@ class StyleGanColab():
         print("dynamo ", self.url)
         # self.pingColab()
 
+    def update_url(self):
+        # Dynamo should be updated with the latest colab url
+        self.url = dynamo.get_bff_url()
+        print("url updated ", self.url)
+        self.pingColab()
+
     def pingColab(self):
         url = self.url + "/ping"
         try:
@@ -24,7 +30,7 @@ class StyleGanColab():
             return 0
         except json.decoder.JSONDecodeError as e:
             print("JSONDecodeError error ", e)
-            mysocket.main.emailError(e)
+            # mysocket.main.emailError(e)
             return 0
         except Exception as e:
             print("Other error ", e)

@@ -40,7 +40,6 @@ def submitExecutor(func, *args, **kwargs):
 chats = []
 cachedGallery = None
 # main_generator = StyleGanGenerator()
-main_generator = StyleGanColab(local=False)
 
 
 class MainThread():
@@ -62,14 +61,14 @@ class MainThread():
         self.galleryImages = galleryImages
 
     def initServer(self):
-        res = main_generator.pingColab()
+        res = mysocket.main_generator.pingColab()
         if res == 1:
             print("Colab is UP!")
 
         sc.tl.start(block=False)
 
     def pingColabServer(self):
-        res = main_generator.pingColab()
+        res = mysocket.main_generator.pingColab()
         if res == 1:
             print("Colab is UP!")
         else:
@@ -189,7 +188,7 @@ class ClientThread():
         # (gen_images, w_srcs) = f_results[0].result()
         # executor.submit(main_generator.generateRandomImages(
         #     self.threadId, batch_size=1))
-        res = submitExecutor(main_generator.generateRandomImages,
+        res = submitExecutor(mysocket.main_generator.generateRandomImages,
                              self.threadId, 1)
         if res != 1:
             print("send error to client")
@@ -218,7 +217,7 @@ class ClientThread():
         # mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         # self.broadcastImgToClient(mp_fig)
 
-        executor.submit(main_generator.generateImageFromWsrc,
+        executor.submit(mysocket.main_generator.generateImageFromWsrc,
                         self.threadId, w_src=w_src, tag="forSearch")
 
     def changeCoeff_clipped(self, params=None):
@@ -247,7 +246,7 @@ class ClientThread():
         # self.broadcastImgToClient(mp_fig)
 
         # new code sents request to colab, and colab sends image back as a post request
-        res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+        res = submitExecutor(mysocket.main_generator.generateImageFromWsrc, self.threadId,
                              w_src=self.w_src_curr)
         if res != 1:
             # Rest error
@@ -280,7 +279,7 @@ class ClientThread():
 
         # mp_fig = self.processGeneratedImages(gen_images, returnAsList=False)
         # self.broadcastImgToClient(mp_fig)
-        res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+        res = submitExecutor(mysocket.main_generator.generateImageFromWsrc, self.threadId,
                              w_src=w_src_curr)
         if res != 1:
             print("send error to client")
@@ -305,7 +304,7 @@ class ClientThread():
 
         if mysocket.main.getCachedStyleMix() is None:
             # colab call
-            res = submitExecutor(main_generator.generateRandomImages,
+            res = submitExecutor(mysocket.main_generator.generateRandomImages,
                                  self.threadId, batch_size=self.STYLEMIX_N, tag="forStyleMix")
             if res != 1:
                 print("send error to client")
@@ -324,7 +323,7 @@ class ClientThread():
         # print(len(w_srsc))
         if len(w_srsc) > 0:
             if mysocket.main.getCachedGallery() is None or updateCache:
-                res = submitExecutor(main_generator.generateImageFromWsrc, self.threadId,
+                res = submitExecutor(mysocket.main_generator.generateImageFromWsrc, self.threadId,
                                      w_src=w_srsc, tag="forGallery")
                 if res != 1:
                     print("send error to client")

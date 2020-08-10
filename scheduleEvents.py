@@ -2,8 +2,12 @@ import time
 from timeloop import Timeloop
 from datetime import timedelta
 import mysocket
+import os
 
 tl = Timeloop()
+
+# os.environ['TZ'] = 'US/Pacific'
+# time.tzset()
 
 
 @tl.job(interval=timedelta(seconds=600))
