@@ -23,7 +23,7 @@ class StyleGanColab():
         url = self.url + "/ping"
         try:
             res = requests.get(url, json={})
-            res = res.json()
+            # res = res.json()
         except requests.ConnectionError as e:
             print("connection error ", e)
             mysocket.main.emailError(e)
