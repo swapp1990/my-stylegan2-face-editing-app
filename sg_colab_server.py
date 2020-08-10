@@ -30,7 +30,7 @@ class StyleGanColab():
             return 0
         except json.decoder.JSONDecodeError as e:
             print("JSONDecodeError error ", e)
-            # mysocket.main.emailError(e)
+            mysocket.main.emailError(e)
             return 0
         except Exception as e:
             print("Other error ", e)
